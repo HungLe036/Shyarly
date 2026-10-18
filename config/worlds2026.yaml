@@ -1,0 +1,161 @@
+# Worlds 2026 (League of Legends World Championship) — tournament facts used by Shyarly.
+# Every block cites its source. Nothing here is from memory; anything not yet
+# known is marked `status: pending`.
+#
+# Sources (all accessed 2026-10-18):
+#   RULESET  = Official "2026 World Championship Event Specific Ruleset v1.0" (Riot Competitive Ops, published 2026-09-01)
+#              https://cdn.sanity.io/files/dsfx7636/news_live/faa5ce974e58615911fbee931c6123e2785a8b46.pdf
+#              listed at https://competitiveops.riotgames.com/en-US/library
+#              (Note: the PDF contains two copy-paste slips — "Mid Season Invitational event" in 1.1 and
+#               "2025 WCE Champion" in 4.1.3.1.3. Neither affects format rules.)
+#   PRIMER   = https://lolesports.com/en-US/news/worlds-2026-primer (lolesports, 2026-10-05)
+#   LP_MAIN  = https://lol.fandom.com/wiki/2026_Season_World_Championship/Main_Event (Leaguepedia)
+#   LP_PLAYIN= https://lol.fandom.com/wiki/2026_Season_World_Championship/Play-In (Leaguepedia)
+
+sources:
+  RULESET: "https://cdn.sanity.io/files/dsfx7636/news_live/faa5ce974e58615911fbee931c6123e2785a8b46.pdf"
+  PRIMER: "https://lolesports.com/en-US/news/worlds-2026-primer"
+  LP_MAIN: "https://lol.fandom.com/wiki/2026_Season_World_Championship/Main_Event"
+  LP_PLAYIN: "https://lol.fandom.com/wiki/2026_Season_World_Championship/Play-In"
+
+event:
+  source: [RULESET 4.4.1, RULESET 5.1, PRIMER]
+  name: "2026 League of Legends World Championship"
+  competitive_patch: "26.20"            # RULESET 5.1
+  stages:
+    play_in:  {start: 2026-10-15, end: 2026-10-18, venue: "Los Angeles, CA"}
+    swiss:    {start: 2026-10-23, end: 2026-10-31, venue: "Allen, TX",
+               match_days: [2026-10-23, 2026-10-24, 2026-10-25, 2026-10-26,
+                            2026-10-28, 2026-10-29, 2026-10-30, 2026-10-31]}
+    knockout:
+      quarterfinals: {start: 2026-11-03, end: 2026-11-06, venue: "Allen, TX"}
+      semifinals:    {start: 2026-11-07, end: 2026-11-08, venue: "Allen, TX"}
+      final:         {date: 2026-11-14, venue: "Brooklyn, NY"}
+
+regions:
+  # source: RULESET 2.2.1 (berths) and Glossary "Qualifying Leagues"
+  # key = league code used for region offsets; value = region label
+  LCK: Korea
+  LPL: China
+  LEC: EMEA
+  LCS: North America
+  LCP: Asia Pacific
+  CBLOL: Brazil
+
+berths:
+  source: [RULESET 2.2.1]
+  LPL: 4
+  LCK: 4
+  LEC: 3
+  LCS: 3
+  LCP: 3
+  CBLOL: 2
+
+teams:
+  # source: PRIMER "QUALIFIED TEAMS" + "INITIAL SWISS STAGE DRAW" tiers;
+  #         seeds and full names cross-checked with LP_MAIN "Participants" (Pool 1–4, e.g. "Korea #1").
+  # Tier = Swiss Round-1 draw pool (RULESET 4.3.2.1: Pool 1 = LCK1, LPL1, LCS1, LEC1, …).
+  # oe_name (Oracle's Elixir teamname) is filled in M1 when mapping data; null until then.
+  # Tier 1
+  - {code: GEN,  name: "Gen.G",                 league: LCK,   seed: 1, tier: 1, oe_name: null}
+  - {code: AL,   name: "Anyone's Legend",       league: LPL,   seed: 1, tier: 1, oe_name: null}
+  - {code: TLAW, name: "Team Liquid Alienware", league: LCS,   seed: 1, tier: 1, oe_name: null}  # LP_MAIN lists as "Team Liquid"
+  - {code: G2,   name: "G2 Esports",            league: LEC,   seed: 1, tier: 1, oe_name: null}
+  # Tier 2
+  - {code: TSW,  name: "Team Secret Whales",    league: LCP,   seed: 1, tier: 2, oe_name: null}
+  - {code: LOS,  name: "LØS",                   league: CBLOL, seed: 1, tier: 2, oe_name: null}  # PRIMER "<CBLOL1>" placeholder; LP_MAIN "Brazil #1 LØS"
+  - {code: HLE,  name: "Hanwha Life Esports",   league: LCK,   seed: 2, tier: 2, oe_name: null}
+  - {code: BLG,  name: "Bilibili Gaming",       league: LPL,   seed: 2, tier: 2, oe_name: null}
+  # Tier 3
+  - {code: LYON, name: "LYON",                  league: LCS,   seed: 2, tier: 3, oe_name: null}
+  - {code: MKOI, name: "Movistar KOI",          league: LEC,   seed: 2, tier: 3, oe_name: null}
+  - {code: T1,   name: "T1",                    league: LCK,   seed: 3, tier: 3, oe_name: null}
+  - {code: TES,  name: "Top Esports",           league: LPL,   seed: 3, tier: 3, oe_name: null}
+  # Tier 4
+  - {code: CFO,  name: "CTBC Flying Oyster",    league: LCP,   seed: 2, tier: 4, oe_name: null}
+  - {code: DK,   name: "Dplus Kia",             league: LCK,   seed: 4, tier: 4, oe_name: null}
+  - {code: IG,   name: "Invictus Gaming",       league: LPL,   seed: 4, tier: 4, oe_name: null}  # PRIMER: "Shanghai Invictus Gaming Meituan"
+  # Play-In winner — PENDING. source: LP_PLAYIN: final KC vs MVK (Bo5) not yet played as of 2026-10-18.
+  # KC = LEC #3, MVK = LCP #3 (LP_PLAYIN participants; RULESET 4.2.1). Replace this entry once decided.
+  - code: PIW
+    name: "Play-In Winner"
+    league: null
+    seed: null
+    tier: 4
+    status: pending
+    candidates: [KC, MVK]
+
+play_in:
+  source: [RULESET 4.1.1, RULESET 4.2.1, LP_PLAYIN]
+  format: double_elimination
+  best_of: 5
+  teams:
+    - {code: KC,  name: "Karmine Corp", league: LEC,   seed: 3}
+    - {code: C9,  name: "Cloud9 Kia",   league: LCS,   seed: 3}
+    - {code: MVK, name: "MVK Esports",  league: LCP,   seed: 3}
+    - {code: FUR, name: "FURIA",        league: CBLOL, seed: 2}
+  # LP_PLAYIN results: R1 MVK 3-0 FUR, KC 3-2 C9; R2 KC 3-0 MVK, FUR 3-1 C9; R3 MVK 3-1 FUR.
+  eliminated: [C9, FUR]
+  final: {teams: [KC, MVK], status: pending}
+
+swiss:
+  source: [RULESET 4.1.2, RULESET 4.3.2, RULESET 4.3.3, RULESET 4.1.4.3, PRIMER]
+  n_teams: 16
+  n_rounds: 5
+  wins_to_advance: 3
+  losses_to_eliminate: 3
+  n_advance: 8
+  # Best-of per match, keyed by the "W-L" record both teams share.
+  # RULESET 4.1.2.1: "Initial matches will be best-of-one, and any match that determines
+  # advancement or elimination will be best-of-three." Spelled out in 4.1.2.1.1–4.1.2.1.5:
+  #   R1: 8 x Bo1   R2: 8 x Bo1   R3: 2-0 and 0-2 Bo3, 1-1 Bo1   R4: 6 x Bo3   R5: 3 x Bo3
+  best_of_by_record:
+    "0-0": 1
+    "1-0": 1
+    "0-1": 1
+    "2-0": 3
+    "1-1": 1
+    "0-2": 3
+    "2-1": 3
+    "1-2": 3
+    "2-2": 3
+  round1:
+    # RULESET 4.3.2.1–4.3.2.3
+    pool_matchups: [[1, 4], [2, 3]]
+    forbid_same_region: true
+    # 4.3.2.3: "In the case where a draw would result in this scenario, or would force this scenario
+    # in a future draw, the drawn team will move to the next available slot."
+    conflict_rule: next_available_slot
+    draw_date: 2026-10-18              # RULESET 4.3.5.1: immediately after Play-In matches on Oct 18
+    # Official Round-1 pairings, filled in once the draw is published. Empty => simulate the draw.
+    pairings: []
+  later_rounds:
+    # RULESET 4.3.3: rounds 2–5 pair teams with the same match record, randomly.
+    pair_by: same_record
+    forbid_rematch: true               # 4.3.3.2: no repeated matches throughout the Swiss Stage
+    forbid_same_region: false          # PRIMER: "same-region matchups are permitted starting with Round 2"
+    conflict_rule: next_available_slot # 4.3.3.2; rematch rule "may be waived by WCE officials" if no eligible draw
+    draw_dates: {2: 2026-10-23, 3: 2026-10-24, 4: 2026-10-26, 5: 2026-10-30}   # RULESET 4.3.5.2–4.3.5.5
+  first_selection: higher_regional_seed_else_coinflip   # RULESET 4.1.4.3.1 (side/pick choice; model averages over sides)
+  placements:
+    # RULESET 4.1.2.1.3–4.1.2.1.5
+    eliminated_round3: "15-16"
+    eliminated_round4: "12-14"
+    eliminated_round5: "9-11"
+
+knockout:
+  source: [RULESET 4.1.3, RULESET 4.3.4, RULESET 4.1.4.4]
+  n_teams: 8
+  format: single_elimination
+  best_of: 5
+  qf_draw:
+    # 4.3.4.1: the (3-0) teams are randomly paired against (3-2) teams; the remaining four are randomly paired.
+    rule: three_oh_vs_three_two_then_random
+    # 4.3.4.2: "The two (3-2) vs. (3-0) matches will be placed on opposite sides of the Knockout Bracket.
+    # The remaining match placements will be determined by draw order."
+    bracket_construction: three_oh_matches_opposite_halves
+    restrictions: none                 # 4.3.4.3
+    draw_date: 2026-10-31              # 4.3.5.6
+  first_selection:
+    quarterfinals: better_swiss_record_else_draw_order  # 4.1.4.4.1
+    semis_and_final: coinflip                           # 4.1.4.4.2

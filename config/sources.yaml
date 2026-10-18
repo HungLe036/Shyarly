@@ -1,0 +1,28 @@
+# External data sources. Only URLs/IDs live here; code reads them via shyarly.config.
+
+oracles_elixir:
+  # source: https://oracleselixir.com/tools/downloads -> "Access files via Google Drive"
+  # Drive folder: https://drive.google.com/drive/folders/1gLSw0RLjBbtaNy0dgnGQDAZOHIgCe-HH
+  # Old S3 bucket (oracleselixir-downloadable-match-data) returns 404 as of 2026-10-18.
+  download_url: "https://drive.usercontent.google.com/download?id={file_id}&export=download&confirm=t"
+  filename: "{year}_LoL_esports_match_data_from_OraclesElixir.csv"
+  # OE updates files once per day; only the current year needs refreshing.
+  refresh_years: [2026]
+  file_ids:
+    2022: "1EHmptHyzY8owv0BAcNKtkQpMwfkURwRy"
+    2023: "1XXk2LO0CsNADBB1LRGOV5rUpyZdEZ8s2"
+    2024: "1IjIEhLc9n8eLKeY-yh_YigKVWbhgGBsN"
+    2025: "1v6LRphp2kYciU4SXp0PCjEMuev1bDejc"
+    2026: "1hnpbrUpBMS1TZI7IovfpKeZfWJH1Aptm"
+
+leaguepedia:
+  # source: https://lol.fandom.com/api.php (Cargo). Anonymous access is rate-limited.
+  api_url: "https://lol.fandom.com/api.php"
+  min_interval_s: 2.0
+  max_retries: 5
+  backoff_s: 30.0
+  user_agent: "Shyarly/0.1 (personal research project; cached, throttled)"
+
+rules:
+  # source: https://competitiveops.riotgames.com/en-US/library -> "2026 World Championship Event Specific Ruleset" (published 2026-09-01)
+  worlds2026_ruleset_pdf: "https://cdn.sanity.io/files/dsfx7636/news_live/faa5ce974e58615911fbee931c6123e2785a8b46.pdf"
