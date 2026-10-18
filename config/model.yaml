@@ -11,6 +11,20 @@ backtest:
   bootstrap_resamples: 2000      # spec "Promotion gates"
   bootstrap_unit: series_id      # games in a series are correlated, so resample whole series
   ece_bins: 5
+  # Every time holdout results were viewed during development. Shown in reports/backtest.md:
+  # the chosen setup was picked after these looks, so holdout scores are optimistically biased.
+  holdout_looks:
+    - "M2 (38a6cba): one shared half-life. BT 0.6251 vs region prior 0.6237 (holdout live log loss)."
+    - "e2fbbcb: separate cross-region half-life. BT 0.6189 vs region prior 0.6237."
+    - "Widened grids (lambda_team to 64, half-lives 30–1460 days, 4-year lookback), discarded: BT 0.6238 vs region prior 0.6252. The e2fbbcb setup was kept after seeing this."
+
+gates:
+  # Spec "Promotion gates": holdout, live mode, calibrated BT, paired bootstrap.
+  coinflip_log_loss: 0.693           # BT log loss must be below this
+  min_gain_vs_region_prior: 0.010    # and its 95% CI must exclude 0
+  max_ci80_upper_vs_elo: 0.005       # point gain > 0 and 80% CI upper bound <= this
+  max_ece: 0.05
+  slope_range: [0.8, 1.2]
 
 bt:
   lookback_days: 730             # older games carry < 6% weight even at the longest half-life

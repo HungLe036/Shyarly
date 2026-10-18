@@ -42,7 +42,7 @@ def backtest() -> None:
     cfg = load_model_config()
     result = run_backtest(pd.read_parquet(paths.GAMES_PARQUET), cfg)
     result.predictions.to_parquet(paths.BACKTEST_PREDICTIONS, index=False)
-    write_report(result, cfg)
+    write_report(result, cfg, pd.read_parquet(paths.SERIES_PARQUET))
     typer.echo(f"Wrote {paths.BACKTEST_REPORT.relative_to(paths.ROOT)} and {paths.BACKTEST_PREDICTIONS.relative_to(paths.ROOT)}")
 
 
