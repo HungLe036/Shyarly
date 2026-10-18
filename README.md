@@ -1,40 +1,189 @@
 # Shyarly
 
-Calibrated win probabilities and a Monte Carlo simulation of the League of Legends World Championship 2026.
+Calibrated win probabilities and a Monte Carlo simulation of the **League of Legends World
+Championship 2026** Swiss Stage (Allen, TX, Oct 23–31; 16 teams, 8 advance).
 
-Spec: [docs/02-refined-plan.md](docs/02-refined-plan.md). Tournament rules, teams and seeds: [config/worlds2026.yaml](config/worlds2026.yaml), with a source URL on every block.
+- Spec: [docs/02-refined-plan.md](docs/02-refined-plan.md). Background: [docs/01-brainstorm.md](docs/01-brainstorm.md).
+- Tournament facts (teams, seeds, format rules), each with a cited source: [config/worlds2026.yaml](config/worlds2026.yaml).
+- Backtest and promotion gates: [reports/backtest.md](reports/backtest.md).
+- Current Swiss odds: [reports/swiss_odds.md](reports/swiss_odds.md) ([CSV](reports/swiss_odds.csv)).
 
-## Setup (Windows)
+## Status (2026-10-18)
+
+| Milestone | State | Commit |
+|---|---|---|
+| M0 — scaffold, raw data cache, cited Worlds config | done | `4ea689d` |
+| M1 — `games.parquet` with schema, duplicate and point-in-time tests | done | `6420fa5` |
+| M2 — baselines (50/50, region prior, Elo) and Bradley-Terry, backtest | done | `38a6cba`, `e2fbbcb` |
+| M3 — temperature calibration, series probabilities, gates | done | `2c434f7`, `4678d8d` |
+| M4 — Swiss Monte Carlo, `predict` and `simulate` CLI | done | `d33deb3` |
+| M5 — daily update from live results (`shyarly update`) | not started | |
+| M6 — knockout sim, champion %, Streamlit page | not started | |
+
+81 tests pass (`uv run pytest`), plus a slow 50k-run seed-stability test (`uv run pytest -m slow`).
+
+**Still pending as of this commit:** the Play-In final (KC vs MVK) and the official Swiss Round 1
+draw. Until they are published, the simulator samples both. See "Before and during the Swiss Stage" below.
+
+## Quick start (Windows)
 
 ```powershell
 winget install --id astral-sh.uv -e
 uv sync
+uv run shyarly ingest                 # ~400 MB of Oracle's Elixir CSVs, then builds games.parquet
+uv run shyarly backtest               # ~2 min; writes reports/backtest.md
+uv run shyarly predict match GEN T1 --bo 5
+uv run shyarly simulate --stage swiss --runs 50000
 ```
 
 ## Commands
 
 ```
-shyarly ingest [--refresh]                               # fetch/cache data, build data/processed/games.parquet
-shyarly backtest                                         # tune, score holdout, write reports/backtest.md
-shyarly predict match "<Team A>" "<Team B>" --bo 3 [--as-of 2026-10-25]
-shyarly simulate --stage swiss --runs 50000 [--as-of 2026-10-25] [--seed N]   # reports/swiss_odds.md + .csv
+shyarly ingest [--refresh]                                        # fetch/cache data, build data/processed/*.parquet
+shyarly backtest                                                  # tune, score holdout, write reports/backtest.md
+shyarly predict match "<Team A>" "<Team B>" --bo 3 [--as-of DATE] # one game and best-of-N series
+shyarly simulate --stage swiss [--runs N] [--as-of DATE] [--seed N]
 ```
 
-Teams can be given as Worlds codes (`GEN`), Worlds names or Oracle's Elixir team names.
-Run with `uv run shyarly ...`. Tests: `uv run pytest` (add `-m slow` for the 50k-run seed-stability check).
+You can name a team by its Worlds code (`GEN`), its Worlds name, or its Oracle's Elixir name.
+`--as-of` uses only games dated before that UTC day. Example output:
 
-### Before and during the Swiss Stage
-- **Play-In winner:** while `teams` has the pending `PIW` slot, `simulate` splits runs between the
-  candidates by the model's Bo5 odds. Once decided, replace the `PIW` entry in `config/worlds2026.yaml`
-  with the winner (and its source).
-- **Round 1 draw:** fill `swiss.round1.pairings` with `[CODE, CODE]` pairs once published; until then
-  the draw is simulated.
-- Refresh data with `shyarly ingest --refresh` after new games.
+```
+GEN (LCK) vs T1 (LCK), games before 2026-10-18 UTC, T=1.0502
+  one game:    52.5%   (on blue 56.9%, on red 48.2%)
+  Bo5 series:  54.7%
+```
 
-## Data
+## What was built
 
-- Oracle's Elixir yearly match CSVs (2022–2026), cached to `data/raw/oe/` with a sha256 manifest.
-- Leaguepedia Cargo API (throttled; every response cached to `data/raw/leaguepedia/`).
-- Hand-entered live results: `data/manual/worlds2026_results.csv`.
+### Data (M0–M1)
 
-`data/` is gitignored except `data/manual/`. Game statistics are the property of Riot Games; OE data is provided by Tim Sevenhuysen (oracleselixir.com).
+- **Source:** the [Oracle's Elixir](https://oracleselixir.com/tools/downloads) yearly match CSVs for
+  2022–2026. They now live on Google Drive; the old S3 links return 404. Downloads are cached in
+  `data/raw/oe/` with a sha256 manifest.
+- **Leaguepedia:** the Cargo API client throttles requests and caches every response, but it isn't
+  needed for the MVP (anonymous access was rate-limited).
+- **`data/processed/games.parquet`:** one row per game, 53,585 games from 2022-01 to 2026-10-17.
+  - UTC dates; OE timestamps were checked against the Play-In start time.
+  - Team-season ids (`{slug}_{year}`) and series ids.
+  - Each side's region as of that game. For an international game, a team takes its home region
+    from its earlier domestic games, so appending future rows never changes past rows.
+- **[config/leagues.yaml](config/leagues.yaml):** maps the home leagues that matter to regions. These
+  were derived from which teams actually play cross-region events, and checked against Leaguepedia
+  (LTA 2025, LCP 2025).
+- **International games:** OE files regional qualifiers under the `WLDs` code. An event's main phase
+  is therefore taken to start at its first cross-region game. That gives 834 scored Worlds/MSI
+  main-event games.
+- **Dropped:** 2 games with no winner, and 4 games that OE lists twice under different ids.
+
+### Models (M2–M3)
+
+- **MVP model:** a time-decayed, ridge-regularized Bradley-Terry logistic regression
+  ([src/shyarly/models/bt.py](src/shyarly/models/bt.py)):
+  `logit p = (r[region_A] + u[team_A]) − (r[region_B] + u[team_B]) + β_side`.
+  - Domestic games decay with a 60-day half-life. Cross-region games (the only ones that move the
+    region offsets) decay with a 730-day half-life.
+  - Team deviations are shrunk hard (λ = 16). Minor regions get a wider prior.
+- **Baselines:** 50/50, region-prior-only (the same model without team terms), and region-offset Elo.
+- **Calibration:** one temperature on the logit, with no intercept. In the backtest, each event's
+  temperature is fitted only on earlier events. Production uses T = 1.0502, fitted on all eight
+  backtest events.
+- **Series:** the side-averaged game probability goes through the closed-form Bo3
+  `p²(3−2p)` and Bo5 `p³(10−15p+6p²)` formulas.
+
+### Backtest and gates
+
+- **Tune events:** Worlds 2022, MSI 2023, Worlds 2023.
+- **Holdout events:** MSI 2024, Worlds 2024, MSI 2025, Worlds 2025, MSI 2026.
+- **Modes:** "live" refits before every UTC match day. "Pre-event" freezes the model at the start of
+  each event.
+- **Holdout results, live mode, calibrated, 419 games:**
+
+| model | log loss | Brier | ECE | slope |
+|---|---|---|---|---|
+| 50/50 | 0.6931 | 0.2500 | 0.066 | — |
+| region prior | 0.6246 | 0.2173 | 0.027 | 0.85 |
+| Elo | 0.6440 | 0.2257 | 0.050 | 0.66 |
+| **BT** | **0.6199** | **0.2152** | 0.044 | 0.89 |
+
+BT passes all five promotion gates:
+- beats 50/50;
+- beats the region prior: Δ −0.0046, 95% CI [−0.0091, −0.0001];
+- is not worse than Elo: Δ −0.0240;
+- ECE 0.044;
+- calibration slope 0.886.
+
+For series, the Bo-formula beats using the raw game probability: holdout Bo5 log loss 0.519 vs 0.544.
+
+### Swiss simulation (M4)
+
+[src/shyarly/sim/swiss.py](src/shyarly/sim/swiss.py) follows the official 2026 ruleset:
+- **Round 1:** pools 1v4 and 2v3, with no same-region pairings.
+- **Rounds 2–5:** random pairing within the same record, with no rematches.
+- **Match length:** Bo1, except Bo3 when a match decides qualification or elimination.
+- **Finish:** a team stops at 3 wins or 3 losses.
+- **Play-In slot:** while the winner is pending, runs are split between KC and MVK by the model's
+  Bo5 odds for the final.
+- **Tests:** invariants are checked on every simulated run.
+  - Exactly 8 teams advance and 8 are eliminated.
+  - Every team ends on 3 wins or 3 losses.
+  - Final records always split 2/3/3/3/3/2 across 3-0…0-3.
+  - Paired teams share a record, and the best-of matches the record.
+  - There are no rematches.
+  - Qualify % sums to 800%.
+- **Speed:** 50,000 runs take about 10 seconds.
+
+Current qualify odds (50k runs, games through Oct 17): Gen.G 87%, HLE 85%, T1 84%, DK 83%, BLG 73%,
+AL 63%, IG 61%, TES 59%, G2 47%, MKOI 38%, KC 35% (83% to make the field), TLAW 28%, LYON 26%,
+TSW 11%, LØS 10%, CFO 8%, MVK 2%. The full table is in [reports/swiss_odds.md](reports/swiss_odds.md).
+
+## Decisions and deviations from the spec
+
+All of these are recorded in the configs and in [reports/backtest.md](reports/backtest.md).
+
+1. **Region-prior gate revised.** The spec required BT to beat the region prior by ≥ 0.010 log loss.
+   An ML review found that team-level information adds about 0.005 at best at international events,
+   including on 308 cross-region games outside the holdout. The gate is now "Δ < 0 with the 95% CI
+   excluding 0, Δ reported" (user decision, 2026-10-18).
+2. **Holdout looked at three times.** Each look is listed in `config/model.yaml` (`holdout_looks`),
+   so the holdout scores are somewhat optimistic. A grid widening that made the holdout worse was
+   discarded.
+3. **Separate half-life for cross-region games.** The spec had one half-life (60–180 days). One
+   shared value forced a trade-off between team form and region strength.
+4. **Seed-stability gate.** "Within ±0.5pp at 50k runs" is read as "each qualify % has a 95% Monte
+   Carlo margin within ±0.5pp" (it is ±0.44pp). The largest difference between two seeds across 16
+   teams is itself noisy: about 0.5–0.85pp at 50k runs.
+5. **Draw procedure.** The ruleset says a conflicting team "moves to the next available slot" but
+   does not define the slot order. Round 1 picks uniformly among valid pairings, and later rounds
+   use randomized backtracking.
+6. **What the model can't see:** rosters, drafts, patch 26.20 and Play-In form beyond the games in
+   the data. Same-region teams come out close together because the model leans on region strength.
+
+## Before and during the Swiss Stage
+
+- **Play-In winner** (listed for 2026-10-19 05:00 local): replace the `PIW` entry in
+  `config/worlds2026.yaml` with the winner and a source link.
+- **Round 1 draw:** fill `swiss.round1.pairings` with `[CODE, CODE]` pairs once they are published.
+- **New games:** run `shyarly ingest --refresh` (OE updates once a day), then `shyarly simulate`.
+- **Live results:** the simulator can already take fixed pairings and fixed results for any round.
+  Feeding them from `data/manual/worlds2026_results.csv` via `shyarly update` is M5.
+
+## Repo layout
+
+```
+config/            worlds2026.yaml (cited tournament facts), leagues.yaml, model.yaml, sources.yaml
+data/              raw/ interim/ processed/ (gitignored) and manual/ (tracked)
+src/shyarly/       cli.py, paths.py, config.py
+  data/            fetch.py (cache + manifest), leaguepedia.py, games.py (games/series tables)
+  models/          bt.py, elo.py, baselines.py, calibration.py, series.py, predictor.py
+  eval/            metrics.py, backtest.py
+  sim/             swiss.py (simulator), run.py (Worlds field + odds report)
+tests/             schema, leakage, models, metrics, calibration, series, Swiss invariants, predictor
+reports/           backtest.md, swiss_odds.md/.csv
+```
+
+## Data and licensing
+
+`data/` is gitignored except `data/manual/`. Game statistics are the property of Riot Games. The
+match data comes from Oracle's Elixir (Tim Sevenhuysen), and some tournament details come from
+Leaguepedia (CC BY-SA 3.0).
