@@ -9,6 +9,11 @@ longer half-life (`half_life_intl_days`) so region offsets keep a longer memory 
 team form. Ridge penalties shrink u (lambda_team) harder than r; minor regions
 get a smaller penalty (wider prior) so they can sit far from the average region.
 With `use_teams=False` this is the region-prior-only baseline.
+
+The fit is the mode of a Bayesian model (the ridge penalties are normal priors, the
+decay weights scale each game's likelihood). `fit(..., with_cov=True)` adds the Laplace
+approximation of the posterior: a normal centred on the mode with covariance equal to the
+inverse Hessian of the objective, H = X' diag(w p (1-p)) X + 2 diag(penalty).
 """
 
 from __future__ import annotations
@@ -41,9 +46,23 @@ class BTFit:
     beta: float = 0.0
     region: dict[str, float] = field(default_factory=dict)
     team: dict[str, float] = field(default_factory=dict)
+    # Parameter vector, its layout (("beta", ""), ("region", r), ("team", t)) -> position,
+    # and the Laplace posterior covariance (only with `fit(..., with_cov=True)`).
+    theta: np.ndarray = field(default_factory=lambda: np.zeros(1))
+    index: dict[tuple[str, str], int] = field(default_factory=lambda: {("beta", ""): 0})
+    cov: np.ndarray | None = None
 
     def strength(self, team_season_id: str, region: str | None) -> float:
         return self.region.get(region, 0.0) + self.team.get(team_season_id, 0.0)
+
+
+@dataclass
+class _Problem:
+    X: csr_matrix
+    y: np.ndarray
+    w: np.ndarray
+    pen: np.ndarray
+    index: dict[tuple[str, str], int]
 
 
 class BradleyTerry:
@@ -52,11 +71,23 @@ class BradleyTerry:
         self.use_teams = use_teams
         self.name = "bt" if use_teams else "region_prior"
 
-    def fit(self, games: pd.DataFrame, cutoff: pd.Timestamp) -> BTFit:
+    def objective(self, games: pd.DataFrame, cutoff: pd.Timestamp):
+        """(loss(theta), grad(theta)) of the penalized weighted negative log-likelihood."""
+        prob = self._problem(games, cutoff)
+        return (lambda th: self._loss_grad(prob, th)[0]), (lambda th: self._loss_grad(prob, th)[1])
+
+    @staticmethod
+    def _loss_grad(prob: _Problem, theta: np.ndarray):
+        z = prob.X @ theta
+        loss = np.sum(prob.w * (np.logaddexp(0.0, z) - prob.y * z)) + np.sum(prob.pen * theta**2)
+        grad = prob.X.T @ (prob.w * (expit(z) - prob.y)) + 2 * prob.pen * theta
+        return loss, grad
+
+    def _problem(self, games: pd.DataFrame, cutoff: pd.Timestamp) -> _Problem | None:
         p = self.params
         train = training_view(games, cutoff, p.lookback_days)
         if train.empty:
-            return BTFit()
+            return None
 
         age = (cutoff - train["date_utc"]).dt.total_seconds().to_numpy() / 86400.0
         cross = train["cross_region"].to_numpy()
@@ -85,19 +116,30 @@ class BradleyTerry:
             pen[i] = p.lambda_region_minor if r in minor else p.lambda_region_major
         pen[1 + len(regions):] = p.lambda_team
 
-        def objective(theta):
-            z = X @ theta
-            loss = np.sum(w * (np.logaddexp(0.0, z) - y * z)) + np.sum(pen * theta**2)
-            grad = X.T @ (w * (expit(z) - y)) + 2 * pen * theta
-            return loss, grad
+        index = {("beta", ""): 0} | {("region", r): i for r, i in r_idx.items()} | {("team", t): i for t, i in t_idx.items()}
+        return _Problem(X, y, w, pen, index)
 
-        res = minimize(objective, np.zeros(k), jac=True, method="L-BFGS-B",
-                       options={"maxiter": 2000, "gtol": 1e-8})
+    def fit(self, games: pd.DataFrame, cutoff: pd.Timestamp, with_cov: bool = False) -> BTFit:
+        prob = self._problem(games, cutoff)
+        if prob is None:
+            return BTFit(cov=np.eye(1) if with_cov else None)
+
+        res = minimize(lambda th: self._loss_grad(prob, th), np.zeros(len(prob.pen)), jac=True,
+                       method="L-BFGS-B", options={"maxiter": 2000, "gtol": 1e-8})
         theta = res.x
+        cov = None
+        if with_cov:
+            z = prob.X @ theta
+            pz = expit(z)
+            curv = prob.w * pz * (1.0 - pz)
+            hess = (prob.X.T @ prob.X.multiply(curv[:, None])).toarray() + np.diag(2 * prob.pen)
+            cov = np.linalg.inv(hess)
+            cov = (cov + cov.T) / 2
         return BTFit(
             beta=float(theta[0]),
-            region={r: float(theta[i]) for r, i in r_idx.items()},
-            team={t: float(theta[i]) for t, i in t_idx.items()},
+            region={key: float(theta[i]) for (kind, key), i in prob.index.items() if kind == "region"},
+            team={key: float(theta[i]) for (kind, key), i in prob.index.items() if kind == "team"},
+            theta=theta, index=prob.index, cov=cov,
         )
 
     def predict(self, games: pd.DataFrame, queries: pd.DataFrame) -> np.ndarray:

@@ -2,6 +2,10 @@
 
 While the Play-In winner is pending, runs are split between the candidates in proportion
 to the model's Bo5 win probability for the Play-In final, so every row is unconditional.
+
+With `posterior=True`, each run draws the 16 teams' strengths (and the side term) from the
+BT fit's Laplace posterior, so the uncertainty in strengths is carried into the odds:
+a team that is probably strong but poorly measured is sometimes weak for a whole run.
 """
 
 from __future__ import annotations
@@ -24,6 +28,7 @@ class SwissOdds:
     play_in: dict[str, float]           # candidate -> share of runs (empty when decided)
     round1_fixed: bool
     waived_rematches: int
+    posterior: bool = False
 
 
 def _round1_pairings(worlds: WorldsConfig, codes: list[str]) -> dict[int, list[tuple[int, int]]] | None:
@@ -38,7 +43,7 @@ def _round1_pairings(worlds: WorldsConfig, codes: list[str]) -> dict[int, list[t
 
 
 def simulate_worlds_swiss(worlds: WorldsConfig, leagues: LeagueMap, predictor: Predictor,
-                          runs: int, seed: int) -> SwissOdds:
+                          runs: int, seed: int, posterior: bool = False) -> SwissOdds:
     year = predictor.as_of.year
     rules = SwissRules.from_config(worlds.swiss)
     fixed = [t for t in worlds.teams if t.status != "pending"]
@@ -68,7 +73,11 @@ def simulate_worlds_swiss(worlds: WorldsConfig, leagues: LeagueMap, predictor: P
                              predictor.game_matrix(refs), rules, fixed_pairings=pairings)
         if n == 0:
             continue
-        res = sim.simulate(int(n), seed=seed + k + 1)
+        sampler = None
+        if posterior:
+            draw_rng = np.random.default_rng([seed, k, 1])
+            sampler = lambda m, refs=refs, draw_rng=draw_rng: predictor.game_matrix_draws(refs, m, draw_rng)  # noqa: E731
+        res = sim.simulate(int(n), seed=seed + k + 1, sampler=sampler)
         waived += res.waived_rematches
         for i, t in enumerate(teams):
             row = acc.setdefault(t.code, {
@@ -86,7 +95,7 @@ def simulate_worlds_swiss(worlds: WorldsConfig, leagues: LeagueMap, predictor: P
         table[col] = table[col] / runs
     table = table.sort_values(["qualify", "3-0"], ascending=False).reset_index(drop=True)
     play_in = {s.code: float(p) for s, p in scenarios if s is not None}
-    return SwissOdds(table, runs, seed, play_in, round1_fixed, waived)
+    return SwissOdds(table, runs, seed, play_in, round1_fixed, waived, posterior)
 
 
 def odds_markdown(odds: SwissOdds, as_of: pd.Timestamp, temperature: float, last_game: pd.Timestamp) -> str:
@@ -99,6 +108,9 @@ def odds_markdown(odds: SwissOdds, as_of: pd.Timestamp, temperature: float, last
         f"{as_of:%Y-%m-%d} UTC (latest game {last_game:%Y-%m-%d %H:%M} UTC).",
         f"- **Simulation:** {odds.runs:,} runs, seed {odds.seed}. 95% Monte Carlo margin on each "
         f"qualify % ≤ ±{196 * np.sqrt(0.25 / odds.runs):.2f}pp. Rematch rule waived in {odds.waived_rematches} runs.",
+        "- **Strength uncertainty:** " + (
+            "each run draws team strengths from the BT fit's Laplace posterior (one draw per run)."
+            if odds.posterior else "off; every run uses the point estimate of each team's strength."),
     ]
     if odds.play_in:
         split = ", ".join(f"{c} {pct(p)}" for c, p in odds.play_in.items())

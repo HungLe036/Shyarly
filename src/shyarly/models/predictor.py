@@ -38,14 +38,17 @@ def bt_params_from_config(model_cfg: dict) -> BTParams:
 
 
 class Predictor:
-    def __init__(self, games: pd.DataFrame, as_of: pd.Timestamp, params: BTParams, temperature: float):
+    def __init__(self, games: pd.DataFrame, as_of: pd.Timestamp, params: BTParams, temperature: float,
+                 posterior: bool = False):
         self.as_of = day_start(as_of)
         self.temperature = temperature
-        self.fit = BradleyTerry(params).fit(games, self.as_of)
+        self.fit = BradleyTerry(params).fit(games, self.as_of, with_cov=posterior)
 
     @classmethod
-    def from_config(cls, games: pd.DataFrame, as_of: pd.Timestamp, model_cfg: dict) -> Predictor:
-        return cls(games, as_of, bt_params_from_config(model_cfg), model_cfg["production"]["temperature"])
+    def from_config(cls, games: pd.DataFrame, as_of: pd.Timestamp, model_cfg: dict,
+                    posterior: bool = False) -> Predictor:
+        return cls(games, as_of, bt_params_from_config(model_cfg), model_cfg["production"]["temperature"],
+                   posterior=posterior)
 
     def team_season_id(self, team: TeamRef) -> str:
         return f"{slugify(team.oe_name)}_{self.as_of.year}"
@@ -77,6 +80,30 @@ class Predictor:
                 m[i, j] = self.p_game(teams[i], teams[j])
                 m[j, i] = 1.0 - m[i, j]
         return m
+
+    def strength_posterior(self, teams: list[TeamRef]) -> tuple[np.ndarray, np.ndarray]:
+        """Laplace posterior of (beta, strength_1, ..., strength_n): mean and covariance.
+        A strength is region offset + team deviation; a team with no games this season is its region."""
+        if self.fit.cov is None:
+            raise ValueError("Predictor was built without posterior=True")
+        idx = self.fit.index
+        a = np.zeros((len(teams) + 1, len(idx)))
+        a[0, idx[("beta", "")]] = 1.0
+        for row, t in enumerate(teams, start=1):
+            for key in (("region", t.region), ("team", self.team_season_id(t))):
+                if key in idx:
+                    a[row, idx[key]] = 1.0
+        return a @ self.fit.theta, a @ self.fit.cov @ a.T
+
+    def game_matrix_draws(self, teams: list[TeamRef], n: int, rng: np.random.Generator) -> np.ndarray:
+        """n posterior draws of game_matrix: [k, i, j] = P(i beats j in one game) under draw k."""
+        mean, cov = self.strength_posterior(teams)
+        d = rng.multivariate_normal(mean, cov, size=n, method="cholesky")
+        beta, s = d[:, :1, None], d[:, 1:]
+        diff = s[:, :, None] - s[:, None, :]
+        p_i_blue = expit((beta + diff) / self.temperature)
+        p_j_blue = expit((beta - diff) / self.temperature)
+        return side_averaged(p_i_blue, p_j_blue)
 
 
 def worlds_team_ref(code: str, worlds: WorldsConfig, leagues: LeagueMap, year: int) -> TeamRef:

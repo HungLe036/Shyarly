@@ -18,6 +18,7 @@ counts it.
 from __future__ import annotations
 
 import random
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from itertools import permutations
 
@@ -134,7 +135,9 @@ class SwissSimulator:
 
     # --------------------------------------------------------------- run
 
-    def run_once(self, rng: random.Random) -> RunLog:
+    def run_once(self, rng: random.Random, series_p: dict[int, list] | None = None) -> RunLog:
+        """One Swiss Stage. series_p: per-run series probabilities (default: the fixed matrix)."""
+        series_p = series_p or self.series_p
         r = self.rules
         wins, losses = [0] * 16, [0] * 16
         met: set[frozenset] = set()
@@ -165,7 +168,7 @@ class SwissSimulator:
                 if key in self.fixed_results:
                     winner = self.fixed_results[key]
                 else:
-                    winner = a if rng.random() < self.series_p[bo][a][b] else b
+                    winner = a if rng.random() < series_p[bo][a][b] else b
                 loser = b if winner == a else a
                 wins[winner] += 1
                 losses[loser] += 1
@@ -184,14 +187,35 @@ class SwissSimulator:
                 raise ValueError(f"Fixed Round {rnd} pairs {self.teams[a]} and {self.teams[b]} with different records")
         return [tuple(p) for p in pairs]
 
-    def simulate(self, runs: int, seed: int) -> SwissResult:
+    def _per_run_series(self, sampler: Callable[[int], np.ndarray] | None, runs: int,
+                        chunk: int) -> Iterator[dict[int, list] | None]:
+        if sampler is None:
+            yield from (None for _ in range(runs))
+            return
+        bos = sorted(set(self.rules.best_of_by_record.values()))
+        done = 0
+        while done < runs:
+            n = min(chunk, runs - done)
+            mats = np.asarray(sampler(n))
+            if mats.shape != (n, 16, 16):
+                raise ValueError(f"sampler({n}) must return shape ({n}, 16, 16), got {mats.shape}")
+            series = {bo: series_win_prob(mats, bo).tolist() for bo in bos}
+            for k in range(n):
+                yield {bo: series[bo][k] for bo in bos}
+            done += n
+
+    def simulate(self, runs: int, seed: int, sampler: Callable[[int], np.ndarray] | None = None,
+                 chunk: int = 2000) -> SwissResult:
+        """Play `runs` Swiss Stages. With `sampler(n)` -> (n, 16, 16) game-probability matrices,
+        each run uses its own matrix (e.g. a posterior draw of team strengths), so strength
+        uncertainty is shared across all matches of that run."""
         rng = random.Random(seed)
         qualify = np.zeros(16, dtype=np.int64)
         records = np.zeros((16, len(RECORDS)), dtype=np.int64)
         idx = {rec: k for k, rec in enumerate(RECORDS)}
         waived = 0
-        for _ in range(runs):
-            log = self.run_once(rng)
+        for series_p in self._per_run_series(sampler, runs, chunk):
+            log = self.run_once(rng, series_p)
             waived += log.waived_rematches
             for i, (w, l) in enumerate(log.final):
                 records[i, idx[f"{w}-{l}"]] += 1

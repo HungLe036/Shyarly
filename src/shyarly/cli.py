@@ -96,6 +96,8 @@ def simulate(
     runs: int = typer.Option(None, "--runs", help="Default: simulation.runs in config/model.yaml"),
     as_of: str = typer.Option(None, "--as-of", help="Use only games before this UTC date (default: today)"),
     seed: int = typer.Option(None, "--seed", help="Default: seed in config/model.yaml"),
+    posterior: bool = typer.Option(None, "--posterior/--point",
+                                   help="Draw strengths from the posterior each run (default: simulation.posterior)"),
 ) -> None:
     """Monte Carlo of the Swiss Stage: qualify % and 3-0…0-3 per team."""
     import pandas as pd
@@ -109,9 +111,11 @@ def simulate(
     cfg = load_model_config()
     g = pd.read_parquet(paths.GAMES_PARQUET)
     cutoff = _as_of(as_of)
-    pr = Predictor.from_config(g, cutoff, cfg)
+    use_posterior = cfg["simulation"].get("posterior", False) if posterior is None else posterior
+    pr = Predictor.from_config(g, cutoff, cfg, posterior=use_posterior)
     odds = simulate_worlds_swiss(load_worlds(), load_leagues(), pr,
-                                 runs=runs or cfg["simulation"]["runs"], seed=cfg["seed"] if seed is None else seed)
+                                 runs=runs or cfg["simulation"]["runs"], seed=cfg["seed"] if seed is None else seed,
+                                 posterior=use_posterior)
     last_game = g.loc[g["date_utc"] < cutoff, "date_utc"].max()
     md = odds_markdown(odds, cutoff, pr.temperature, last_game)
     paths.REPORTS_DIR.mkdir(parents=True, exist_ok=True)

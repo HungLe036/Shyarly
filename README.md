@@ -20,7 +20,7 @@ Championship 2026** Swiss Stage (Allen, TX, Oct 23–31; 16 teams, 8 advance).
 | M5 — daily update from live results (`shyarly update`) | not started | |
 | M6 — knockout sim, champion %, Streamlit page | not started | |
 
-81 tests pass (`uv run pytest`), plus a slow 50k-run seed-stability test (`uv run pytest -m slow`).
+92 tests pass (`uv run pytest`), plus a slow 50k-run seed-stability test (`uv run pytest -m slow`).
 
 **Field and Round 1 draw are final (2026-10-19):** Karmine Corp won the Play-In (3-0 over MVK) and
 the official Round 1 pairings are in `config/worlds2026.yaml`. The model data runs to Oct 17 games;
@@ -43,7 +43,7 @@ uv run shyarly simulate --stage swiss --runs 50000
 shyarly ingest [--refresh]                                        # fetch/cache data, build data/processed/*.parquet
 shyarly backtest                                                  # tune, score holdout, write reports/backtest.md
 shyarly predict match "<Team A>" "<Team B>" --bo 3 [--as-of DATE] # one game and best-of-N series
-shyarly simulate --stage swiss [--runs N] [--as-of DATE] [--seed N]
+shyarly simulate --stage swiss [--runs N] [--as-of DATE] [--seed N] [--posterior|--point]
 ```
 
 You can name a team by its Worlds code (`GEN`), its Worlds name, or its Oracle's Elixir name.
@@ -124,6 +124,12 @@ For series, the Bo-formula beats using the raw game probability: holdout Bo5 log
 - **Match length:** Bo1, except Bo3 when a match decides qualification or elimination.
 - **Finish:** a team stops at 3 wins or 3 losses.
 - **Round 1:** uses the official pairings when they are in the config, otherwise simulates the draw.
+- **Strength uncertainty:** each run draws the 16 teams' strengths from the BT fit's Laplace
+  posterior (a normal around the fitted strengths, with covariance from the inverse Hessian of the
+  ridge objective). A poorly measured team is sometimes weak, sometimes strong for a whole run, so
+  favourites lose about 1pp of qualify odds and longshots gain 1–1.6pp. Averaging over the posterior
+  moves single-game probabilities by only 0.3pp on average, so it barely overlaps with the
+  temperature calibration. `--point` turns it off.
 - **Play-In slot:** while the winner is pending, runs are split between the two finalists by the
   model's Bo5 odds for the final.
 - **Tests:** invariants are checked on every simulated run.
@@ -135,9 +141,9 @@ For series, the Bo-formula beats using the raw game probability: holdout Bo5 log
   - Qualify % sums to 800%.
 - **Speed:** 50,000 runs take about 10 seconds.
 
-Current qualify odds (50k runs, official Round 1 draw, games through Oct 17): Gen.G 86%, T1 86%,
-HLE 84%, DK 84%, BLG 74%, AL 63%, IG 58%, TES 55%, G2 44%, KC 42%, MKOI 36%, TLAW 31%, LYON 29%,
-TSW 12%, CFO 9%, LØS 9%. The full table is in [reports/swiss_odds.md](reports/swiss_odds.md).
+Current qualify odds (50k runs with posterior draws, official Round 1 draw, games through Oct 17):
+Gen.G 85%, T1 85%, HLE 84%, DK 83%, BLG 73%, AL 62%, IG 58%, TES 55%, G2 44%, KC 42%, MKOI 36%,
+TLAW 32%, LYON 30%, TSW 13%, LØS 10%, CFO 10%. The full table is in [reports/swiss_odds.md](reports/swiss_odds.md).
 
 ## Decisions and deviations from the spec
 

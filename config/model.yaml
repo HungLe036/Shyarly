@@ -33,6 +33,9 @@ production:
 
 simulation:
   runs: 50000             # spec: stable within ±0.5pp across seeds at 50k runs
+  # Each run draws team strengths from the BT Laplace posterior (one draw per run, so the
+  # Monte Carlo margin is unchanged). Without it, tournament odds treat strengths as known.
+  posterior: true
 
 gates:
   # Spec "Promotion gates": holdout, live mode, calibrated BT, paired bootstrap.
