@@ -55,26 +55,27 @@ teams:
   # source: PRIMER "QUALIFIED TEAMS" + "INITIAL SWISS STAGE DRAW" tiers;
   #         seeds and full names cross-checked with LP_MAIN "Participants" (Pool 1–4, e.g. "Korea #1").
   # Tier = Swiss Round-1 draw pool (RULESET 4.3.2.1: Pool 1 = LCK1, LPL1, LCS1, LEC1, …).
-  # oe_name (Oracle's Elixir teamname) is filled in M1 when mapping data; null until then.
+  # oe_name = Oracle's Elixir teamname, checked on 2026-10-18 against each team's 2026 domestic games
+  # in data/processed/games.parquet (tests/test_config.py re-checks it).
   # Tier 1
-  - {code: GEN,  name: "Gen.G",                 league: LCK,   seed: 1, tier: 1, oe_name: null}
-  - {code: AL,   name: "Anyone's Legend",       league: LPL,   seed: 1, tier: 1, oe_name: null}
-  - {code: TLAW, name: "Team Liquid Alienware", league: LCS,   seed: 1, tier: 1, oe_name: null}  # LP_MAIN lists as "Team Liquid"
-  - {code: G2,   name: "G2 Esports",            league: LEC,   seed: 1, tier: 1, oe_name: null}
+  - {code: GEN,  name: "Gen.G",                 league: LCK,   seed: 1, tier: 1, oe_name: "Gen.G"}
+  - {code: AL,   name: "Anyone's Legend",       league: LPL,   seed: 1, tier: 1, oe_name: "Anyone's Legend"}
+  - {code: TLAW, name: "Team Liquid Alienware", league: LCS,   seed: 1, tier: 1, oe_name: "Team Liquid"}  # LP_MAIN lists as "Team Liquid"
+  - {code: G2,   name: "G2 Esports",            league: LEC,   seed: 1, tier: 1, oe_name: "G2 Esports"}
   # Tier 2
-  - {code: TSW,  name: "Team Secret Whales",    league: LCP,   seed: 1, tier: 2, oe_name: null}
-  - {code: LOS,  name: "LØS",                   league: CBLOL, seed: 1, tier: 2, oe_name: null}  # PRIMER "<CBLOL1>" placeholder; LP_MAIN "Brazil #1 LØS"
-  - {code: HLE,  name: "Hanwha Life Esports",   league: LCK,   seed: 2, tier: 2, oe_name: null}
-  - {code: BLG,  name: "Bilibili Gaming",       league: LPL,   seed: 2, tier: 2, oe_name: null}
+  - {code: TSW,  name: "Team Secret Whales",    league: LCP,   seed: 1, tier: 2, oe_name: "Team Secret Whales"}
+  - {code: LOS,  name: "LØS",                   league: CBLOL, seed: 1, tier: 2, oe_name: "LØS"}  # PRIMER "<CBLOL1>" placeholder; LP_MAIN "Brazil #1 LØS"
+  - {code: HLE,  name: "Hanwha Life Esports",   league: LCK,   seed: 2, tier: 2, oe_name: "Hanwha Life Esports"}
+  - {code: BLG,  name: "Bilibili Gaming",       league: LPL,   seed: 2, tier: 2, oe_name: "Bilibili Gaming"}
   # Tier 3
-  - {code: LYON, name: "LYON",                  league: LCS,   seed: 2, tier: 3, oe_name: null}
-  - {code: MKOI, name: "Movistar KOI",          league: LEC,   seed: 2, tier: 3, oe_name: null}
-  - {code: T1,   name: "T1",                    league: LCK,   seed: 3, tier: 3, oe_name: null}
-  - {code: TES,  name: "Top Esports",           league: LPL,   seed: 3, tier: 3, oe_name: null}
+  - {code: LYON, name: "LYON",                  league: LCS,   seed: 2, tier: 3, oe_name: "LYON"}
+  - {code: MKOI, name: "Movistar KOI",          league: LEC,   seed: 2, tier: 3, oe_name: "Movistar KOI"}
+  - {code: T1,   name: "T1",                    league: LCK,   seed: 3, tier: 3, oe_name: "T1"}
+  - {code: TES,  name: "Top Esports",           league: LPL,   seed: 3, tier: 3, oe_name: "Top Esports"}
   # Tier 4
-  - {code: CFO,  name: "CTBC Flying Oyster",    league: LCP,   seed: 2, tier: 4, oe_name: null}
-  - {code: DK,   name: "Dplus Kia",             league: LCK,   seed: 4, tier: 4, oe_name: null}
-  - {code: IG,   name: "Invictus Gaming",       league: LPL,   seed: 4, tier: 4, oe_name: null}  # PRIMER: "Shanghai Invictus Gaming Meituan"
+  - {code: CFO,  name: "CTBC Flying Oyster",    league: LCP,   seed: 2, tier: 4, oe_name: "CTBC Flying Oyster"}
+  - {code: DK,   name: "Dplus Kia",             league: LCK,   seed: 4, tier: 4, oe_name: "Dplus Kia"}
+  - {code: IG,   name: "Invictus Gaming",       league: LPL,   seed: 4, tier: 4, oe_name: "Invictus Gaming"}  # PRIMER: "Shanghai Invictus Gaming Meituan"
   # Play-In winner — PENDING. source: LP_PLAYIN: final KC vs MVK (Bo5) not yet played as of 2026-10-18.
   # KC = LEC #3, MVK = LCP #3 (LP_PLAYIN participants; RULESET 4.2.1). Replace this entry once decided.
   - code: PIW
@@ -90,10 +91,10 @@ play_in:
   format: double_elimination
   best_of: 5
   teams:
-    - {code: KC,  name: "Karmine Corp", league: LEC,   seed: 3}
-    - {code: C9,  name: "Cloud9 Kia",   league: LCS,   seed: 3}
-    - {code: MVK, name: "MVK Esports",  league: LCP,   seed: 3}
-    - {code: FUR, name: "FURIA",        league: CBLOL, seed: 2}
+    - {code: KC,  name: "Karmine Corp", league: LEC,   seed: 3, oe_name: "Karmine Corp"}
+    - {code: C9,  name: "Cloud9 Kia",   league: LCS,   seed: 3, oe_name: "Cloud9"}
+    - {code: MVK, name: "MVK Esports",  league: LCP,   seed: 3, oe_name: "MVK Esports"}
+    - {code: FUR, name: "FURIA",        league: CBLOL, seed: 2, oe_name: "FURIA"}
   # LP_PLAYIN results: R1 MVK 3-0 FUR, KC 3-2 C9; R2 KC 3-0 MVK, FUR 3-1 C9; R3 MVK 3-1 FUR.
   eliminated: [C9, FUR]
   final: {teams: [KC, MVK], status: pending}

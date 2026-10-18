@@ -24,3 +24,5 @@ BACKTEST_PREDICTIONS = PROCESSED_DIR / "backtest_predictions.parquet"
 
 REPORTS_DIR = ROOT / "reports"
 BACKTEST_REPORT = REPORTS_DIR / "backtest.md"
+SWISS_ODDS_MD = REPORTS_DIR / "swiss_odds.md"
+SWISS_ODDS_CSV = REPORTS_DIR / "swiss_odds.csv"

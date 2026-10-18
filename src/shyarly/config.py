@@ -118,6 +118,7 @@ class Team:
     tier: int
     status: str  # "qualified" | "pending"
     candidates: tuple[str, ...] = ()
+    oe_name: str | None = None
 
 
 @dataclass(frozen=True)
@@ -125,6 +126,16 @@ class WorldsConfig:
     raw: dict[str, Any]
     regions: dict[str, str]
     teams: tuple[Team, ...]
+    play_in_teams: tuple[Team, ...] = ()
+
+    def candidate(self, code: str) -> Team:
+        """A Play-In team placed into the pending Swiss slot (its tier)."""
+        slot = next(t for t in self.teams if t.status == "pending")
+        if code not in slot.candidates:
+            raise KeyError(f"{code} is not a candidate for the pending slot {slot.code}")
+        t = next(p for p in self.play_in_teams if p.code == code)
+        return Team(code=t.code, name=t.name, league=t.league, seed=t.seed, tier=slot.tier,
+                    status="qualified", oe_name=t.oe_name)
 
     @property
     def swiss(self) -> dict[str, Any]:
@@ -152,7 +163,13 @@ def load_worlds(path: Path = paths.WORLDS_CONFIG) -> WorldsConfig:
             tier=int(t["tier"]),
             status=t.get("status", "qualified"),
             candidates=tuple(t.get("candidates", ())),
+            oe_name=t.get("oe_name"),
         )
         for t in raw["teams"]
     )
-    return WorldsConfig(raw=raw, regions=dict(raw["regions"]), teams=teams)
+    play_in = tuple(
+        Team(code=t["code"], name=t["name"], league=t["league"], seed=t.get("seed"), tier=0,
+             status="play_in", oe_name=t.get("oe_name"))
+        for t in raw["play_in"]["teams"]
+    )
+    return WorldsConfig(raw=raw, regions=dict(raw["regions"]), teams=teams, play_in_teams=play_in)

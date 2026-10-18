@@ -32,4 +32,5 @@ packages = ["src/shyarly"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q"
+addopts = "-q -m 'not slow'"
+markers = ["slow: long-running checks (run with `pytest -m slow`)"]

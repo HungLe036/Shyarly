@@ -5,6 +5,7 @@ from itertools import permutations
 
 import pytest
 
+from shyarly import paths
 from shyarly.config import load_sources, load_worlds
 
 CFG = load_worlds()
@@ -102,6 +103,25 @@ def test_every_rule_block_cites_a_source():
             assert ref.split()[0] in CFG.raw["sources"], ref
     for url in CFG.raw["sources"].values():
         assert url.startswith("https://")
+
+
+@pytest.mark.skipif(not paths.GAMES_PARQUET.exists(), reason="run `shyarly ingest` first")
+def test_oe_names_play_in_their_league_in_2026():
+    import pandas as pd
+
+    g = pd.read_parquet(paths.GAMES_PARQUET, columns=["year", "league", "blue_team", "red_team"])
+    g = g[g["year"] == 2026]
+    played = set(zip(g["league"], g["blue_team"])) | set(zip(g["league"], g["red_team"]))
+    teams = [t for t in CFG.teams if t.status != "pending"] + list(CFG.play_in_teams)
+    for t in teams:
+        assert t.oe_name, t.code
+        assert (t.league, t.oe_name) in played, f"{t.code}: {t.oe_name!r} has no 2026 {t.league} games"
+
+
+def test_candidate_takes_pending_slot_tier():
+    for code in CFG.team("PIW").candidates:
+        t = CFG.candidate(code)
+        assert t.tier == CFG.team("PIW").tier and t.oe_name
 
 
 def test_sources_yaml_has_all_backtest_years():

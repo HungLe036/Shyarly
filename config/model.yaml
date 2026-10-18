@@ -18,6 +18,22 @@ backtest:
     - "e2fbbcb: separate cross-region half-life. BT 0.6189 vs region prior 0.6237."
     - "Widened grids (lambda_team to 64, half-lives 30–1460 days, 4-year lookback), discarded: BT 0.6238 vs region prior 0.6252. The e2fbbcb setup was kept after seeing this."
 
+production:
+  # The model used by `shyarly predict` and `shyarly simulate`. Copied from reports/backtest.md
+  # (commit 4678d8d) so predictions don't depend on re-running the backtest.
+  model: bt
+  bt_params:
+    half_life_days: 60
+    half_life_intl_days: 730
+    intl_weight: 1.0
+    lambda_region_major: 0.1
+    lambda_region_minor: 2.0
+    lambda_team: 16.0
+  temperature: 1.0502     # fitted on BT live predictions for all 8 backtest events
+
+simulation:
+  runs: 50000             # spec: stable within ±0.5pp across seeds at 50k runs
+
 gates:
   # Spec "Promotion gates": holdout, live mode, calibrated BT, paired bootstrap.
   coinflip_log_loss: 0.693           # BT log loss must be below this
