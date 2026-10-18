@@ -64,6 +64,41 @@ def load_sources(path: Path = paths.SOURCES_CONFIG) -> Sources:
     )
 
 
+# ----------------------------------------------------------------- leagues.yaml
+
+
+@dataclass(frozen=True)
+class LeagueMap:
+    scored_events: frozenset[str]
+    other_events: frozenset[str]
+    # (league code, year) -> (region, tier)
+    _entries: tuple[tuple[str, int | None, int | None, str, int], ...]
+
+    @property
+    def international_events(self) -> frozenset[str]:
+        return self.scored_events | self.other_events
+
+    def lookup(self, league: str, year: int) -> tuple[str, int] | None:
+        for code, first, last, region, tier in self._entries:
+            if code == league and (first is None or first <= year <= last):
+                return region, tier
+        return None
+
+
+def load_leagues(path: Path = paths.LEAGUES_CONFIG) -> LeagueMap:
+    raw = _read_yaml(path)
+    entries = []
+    for e in raw["leagues"]:
+        first, last = e.get("years", (None, None))
+        entries.append((str(e["code"]), first, last, str(e["region"]), int(e["tier"])))
+    ev = raw["international_events"]
+    return LeagueMap(
+        scored_events=frozenset(ev["scored"]),
+        other_events=frozenset(ev["other"]),
+        _entries=tuple(entries),
+    )
+
+
 # -------------------------------------------------------------- worlds2026.yaml
 
 

@@ -1,0 +1,52 @@
+# Oracle's Elixir league codes -> region, for assigning each team-season a home region.
+#
+# Only leagues that are home leagues of teams seen in cross-region events (2022–2026) are
+# mapped; that set was derived from the OE data, not chosen by hand. Teams whose home league
+# is not listed get region = null and are left out of the rating model.
+#
+# Region codes match config/worlds2026.yaml `regions` (LCK, LPL, LEC, LCS, LCP, CBLOL),
+# plus the minor regions that had their own international slots in 2022–2024.
+#
+# Sources (accessed 2026-10-18):
+#   LP_LCP  = https://lol.fandom.com/wiki/League_of_Legends_Championship_Pacific
+#             ("formed ahead of the 2025 season ... effectively merging the PCS and the VCS, after other
+#              regional leagues as the LCO and the LJL already partnered with the PCS since the 2023 and
+#              2024 season respectively"; major regions listed as LCS LEC LCK LPL LCP CBLOL)
+#   LP_LTA  = https://lol.fandom.com/wiki/League_of_Legends_Championship_of_The_Americas
+#             ("formed ahead of the 2025 season ... merged the LCS, CBLOL and LLA and was split into
+#              LTA North and LTA South")
+#   OE_DATA = league codes and per-year game counts observed in data/raw/oe/*.csv
+#
+# tier 1 = a region's top league that year; tier 2 = feeder or cup league of a known region.
+# A team-season's home league = its most-played tier-1 league that year, else its most-played tier-2.
+# `years` is inclusive [first, last]; omitted means every year.
+
+international_events:
+  # Leagues that are cross-region events; their teams take their region from their home league.
+  # source: OE_DATA (teams from several regions); LP_LCP nav lists First Stand, MSI, Worlds as international.
+  scored: [WLDs, MSI]                   # events the backtest scores (spec: Worlds + MSI)
+  other: [FST, EWC, DCGI, ASI, AC, KeSPA Cup, LTA]
+
+leagues:
+  - {code: LCK,   region: LCK,   tier: 1}
+  - {code: LPL,   region: LPL,   tier: 1}
+  - {code: DCup,  region: LPL,   tier: 2}                    # Demacia Cup: LPL/LDL teams (OE_DATA)
+  - {code: LEC,   region: LEC,   tier: 1}
+  - {code: LFL,   region: LEC,   tier: 2}                    # French ERL; LFL teams entered EWC 2026 (OE_DATA)
+  - {code: LCS,   region: LCS,   tier: 1, years: [2022, 2024]}
+  - {code: LCS,   region: LCS,   tier: 1, years: [2026, 2026]}   # LCS back in 2026 (OE_DATA)
+  - {code: LTA N, region: LCS,   tier: 1, years: [2025, 2025]}   # LP_LTA
+  - {code: CBLOL, region: CBLOL, tier: 1, years: [2022, 2024]}
+  - {code: CBLOL, region: CBLOL, tier: 1, years: [2026, 2026]}   # CBLOL back in 2026 (OE_DATA)
+  - {code: LTA S, region: CBLOL, tier: 1, years: [2025, 2025]}   # LP_LTA; includes former LLA teams
+  - {code: LLA,   region: LLA,   tier: 1, years: [2022, 2024]}   # merged into LTA in 2025 (LP_LTA)
+  - {code: PCS,   region: LCP,   tier: 1, years: [2022, 2024]}   # LCP's predecessor (LP_LCP)
+  - {code: PCS,   region: LCP,   tier: 2, years: [2025, 2026]}
+  - {code: LCP,   region: LCP,   tier: 1, years: [2025, 2026]}   # LP_LCP
+  - {code: VCS,   region: VCS,   tier: 1, years: [2022, 2024]}   # own region until merged into LCP (LP_LCP)
+  - {code: VCS,   region: LCP,   tier: 2, years: [2025, 2026]}
+  - {code: LJL,   region: LJL,   tier: 1, years: [2022, 2023]}
+  - {code: LJL,   region: LCP,   tier: 2, years: [2024, 2026]}   # partnered with PCS from 2024 (LP_LCP)
+  - {code: LCO,   region: LCO,   tier: 1, years: [2022, 2022]}
+  - {code: LCO,   region: LCP,   tier: 2, years: [2023, 2026]}   # partnered with PCS from 2023 (LP_LCP)
+  - {code: TCL,   region: TCL,   tier: 1}                        # Istanbul Wildcats at MSI/Worlds 2022 (OE_DATA)
