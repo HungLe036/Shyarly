@@ -6,7 +6,7 @@ from itertools import permutations
 import pytest
 
 from shyarly import paths
-from shyarly.config import load_sources, load_worlds
+from shyarly.config import Team, load_sources, load_worlds
 
 CFG = load_worlds()
 
@@ -51,36 +51,52 @@ def test_tiers_match_ruleset_pools():
         3: {("LCS", 2), ("LEC", 2), ("LCK", 3), ("LPL", 3)},
         4: {("LCP", 2), ("LPL", 4), ("LCK", 4)},  # + Play-In winner
     }
+    play_in_codes = {t.code for t in CFG.play_in_teams}
     for tier, expected in pools.items():
-        got = {(t.league, t.seed) for t in CFG.teams if t.tier == tier and t.status != "pending"}
+        got = {(t.league, t.seed) for t in CFG.teams
+               if t.tier == tier and t.status != "pending" and t.code not in play_in_codes}
         assert got == expected
+    assert sum(t.tier == 4 and (t.code in play_in_codes or t.status == "pending") for t in CFG.teams) == 1
 
 
-def test_pending_play_in_candidates_are_play_in_teams():
-    pending = [t for t in CFG.teams if t.status == "pending"]
-    assert len(pending) == 1
-    play_in_codes = {t["code"] for t in CFG.raw["play_in"]["teams"]}
-    assert set(pending[0].candidates) <= play_in_codes
-    assert set(pending[0].candidates) == set(CFG.raw["play_in"]["final"]["teams"])
+def test_play_in_winner_fills_pool4_slot():
+    final = CFG.raw["play_in"]["final"]
+    play_in_codes = {t.code for t in CFG.play_in_teams}
+    in_swiss = [t for t in CFG.teams if t.code in play_in_codes]
+    if final["status"] == "pending":
+        pending = [t for t in CFG.teams if t.status == "pending"]
+        assert len(pending) == 1 and not in_swiss
+        assert set(pending[0].candidates) == set(final["teams"]) <= play_in_codes
+    else:
+        assert final["winner"] in final["teams"]
+        assert [t.code for t in in_swiss] == [final["winner"]] and in_swiss[0].tier == 4
+        assert not any(t.status == "pending" for t in CFG.teams)
+        assert set(CFG.raw["play_in"]["eliminated"]) == play_in_codes - {final["winner"]}
 
 
-def _league_of(code: str) -> str:
-    for t in CFG.raw["play_in"]["teams"]:
-        if t["code"] == code:
-            return t["league"]
-    return CFG.team(code).league
-
-
-@pytest.mark.parametrize("piw", CFG.team("PIW").candidates)
-def test_round1_draw_without_same_region_exists(piw):
-    leagues = {t.code: (t.league if t.status != "pending" else _league_of(piw)) for t in CFG.teams}
+def test_round1_draw_without_same_region_exists():
+    leagues = {t.code: t.league for t in CFG.teams if t.status != "pending"}
     by_tier = {k: [t.code for t in CFG.teams if t.tier == k] for k in (1, 2, 3, 4)}
     for a, b in CFG.swiss["round1"]["pool_matchups"]:
         ok = any(
-            all(leagues[x] != leagues[y] for x, y in zip(by_tier[a], perm))
+            all(leagues.get(x) != leagues.get(y) for x, y in zip(by_tier[a], perm))
             for perm in permutations(by_tier[b])
         )
-        assert ok, f"no valid pool {a} vs {b} draw with play-in winner {piw}"
+        assert ok, f"no valid pool {a} vs {b} draw"
+
+
+def test_official_round1_pairings_follow_ruleset():
+    pairs = CFG.swiss["round1"]["pairings"]
+    if not pairs:
+        pytest.skip("Round 1 draw not published yet")
+    by_code = {t.code: t for t in CFG.teams}
+    flat = [c for p in pairs for c in p]
+    assert sorted(flat) == sorted(by_code), "each team exactly once"
+    allowed = {frozenset(m) for m in CFG.swiss["round1"]["pool_matchups"]}
+    for a, b in pairs:
+        ta, tb = by_code[a], by_code[b]
+        assert frozenset((ta.tier, tb.tier)) in allowed, (a, b)
+        assert ta.league != tb.league, (a, b)
 
 
 def test_best_of_matches_ruleset_round_counts():
@@ -119,9 +135,18 @@ def test_oe_names_play_in_their_league_in_2026():
 
 
 def test_candidate_takes_pending_slot_tier():
-    for code in CFG.team("PIW").candidates:
-        t = CFG.candidate(code)
-        assert t.tier == CFG.team("PIW").tier and t.oe_name
+    # Exercise the pending-slot path on a copy where the Play-In slot is still open.
+    from dataclasses import replace
+
+    final = CFG.raw["play_in"]["final"]
+    slot = Team(code="PIW", name="Play-In Winner", league=None, seed=None, tier=4,
+                status="pending", candidates=tuple(final["teams"]))
+    teams = tuple(slot if t.code in {p.code for p in CFG.play_in_teams} else t for t in CFG.teams)
+    pending = replace(CFG, teams=teams) if CFG.raw["play_in"]["final"]["status"] != "pending" else CFG
+    pw = next(t for t in pending.teams if t.status == "pending")
+    for code in pw.candidates:
+        t = pending.candidate(code)
+        assert t.tier == pw.tier and t.oe_name
 
 
 def test_sources_yaml_has_all_backtest_years():

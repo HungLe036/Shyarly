@@ -22,8 +22,9 @@ Championship 2026** Swiss Stage (Allen, TX, Oct 23–31; 16 teams, 8 advance).
 
 81 tests pass (`uv run pytest`), plus a slow 50k-run seed-stability test (`uv run pytest -m slow`).
 
-**Still pending as of this commit:** the Play-In final (KC vs MVK) and the official Swiss Round 1
-draw. Until they are published, the simulator samples both. See "Before and during the Swiss Stage" below.
+**Field and Round 1 draw are final (2026-10-19):** Karmine Corp won the Play-In (3-0 over MVK) and
+the official Round 1 pairings are in `config/worlds2026.yaml`. The model data runs to Oct 17 games;
+Oracle's Elixir had not yet added the Play-In final when it was last refreshed.
 
 ## Quick start (Windows)
 
@@ -122,8 +123,9 @@ For series, the Bo-formula beats using the raw game probability: holdout Bo5 log
 - **Rounds 2–5:** random pairing within the same record, with no rematches.
 - **Match length:** Bo1, except Bo3 when a match decides qualification or elimination.
 - **Finish:** a team stops at 3 wins or 3 losses.
-- **Play-In slot:** while the winner is pending, runs are split between KC and MVK by the model's
-  Bo5 odds for the final.
+- **Round 1:** uses the official pairings when they are in the config, otherwise simulates the draw.
+- **Play-In slot:** while the winner is pending, runs are split between the two finalists by the
+  model's Bo5 odds for the final.
 - **Tests:** invariants are checked on every simulated run.
   - Exactly 8 teams advance and 8 are eliminated.
   - Every team ends on 3 wins or 3 losses.
@@ -133,9 +135,9 @@ For series, the Bo-formula beats using the raw game probability: holdout Bo5 log
   - Qualify % sums to 800%.
 - **Speed:** 50,000 runs take about 10 seconds.
 
-Current qualify odds (50k runs, games through Oct 17): Gen.G 87%, HLE 85%, T1 84%, DK 83%, BLG 73%,
-AL 63%, IG 61%, TES 59%, G2 47%, MKOI 38%, KC 35% (83% to make the field), TLAW 28%, LYON 26%,
-TSW 11%, LØS 10%, CFO 8%, MVK 2%. The full table is in [reports/swiss_odds.md](reports/swiss_odds.md).
+Current qualify odds (50k runs, official Round 1 draw, games through Oct 17): Gen.G 86%, T1 86%,
+HLE 84%, DK 84%, BLG 74%, AL 63%, IG 58%, TES 55%, G2 44%, KC 42%, MKOI 36%, TLAW 31%, LYON 29%,
+TSW 12%, CFO 9%, LØS 9%. The full table is in [reports/swiss_odds.md](reports/swiss_odds.md).
 
 ## Decisions and deviations from the spec
 
@@ -161,9 +163,7 @@ All of these are recorded in the configs and in [reports/backtest.md](reports/ba
 
 ## Before and during the Swiss Stage
 
-- **Play-In winner** (listed for 2026-10-19 05:00 local): replace the `PIW` entry in
-  `config/worlds2026.yaml` with the winner and a source link.
-- **Round 1 draw:** fill `swiss.round1.pairings` with `[CODE, CODE]` pairs once they are published.
+- **Play-In winner and Round 1 draw:** done (KC; pairings sourced from Leaguepedia, 2026-10-19).
 - **New games:** run `shyarly ingest --refresh` (OE updates once a day), then `shyarly simulate`.
 - **Live results:** the simulator can already take fixed pairings and fixed results for any round.
   Feeding them from `data/manual/worlds2026_results.csv` via `shyarly update` is M5.

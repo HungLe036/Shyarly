@@ -76,15 +76,9 @@ teams:
   - {code: CFO,  name: "CTBC Flying Oyster",    league: LCP,   seed: 2, tier: 4, oe_name: "CTBC Flying Oyster"}
   - {code: DK,   name: "Dplus Kia",             league: LCK,   seed: 4, tier: 4, oe_name: "Dplus Kia"}
   - {code: IG,   name: "Invictus Gaming",       league: LPL,   seed: 4, tier: 4, oe_name: "Invictus Gaming"}  # PRIMER: "Shanghai Invictus Gaming Meituan"
-  # Play-In winner — PENDING. source: LP_PLAYIN: final KC vs MVK (Bo5) not yet played as of 2026-10-18.
-  # KC = LEC #3, MVK = LCP #3 (LP_PLAYIN participants; RULESET 4.2.1). Replace this entry once decided.
-  - code: PIW
-    name: "Play-In Winner"
-    league: null
-    seed: null
-    tier: 4
-    status: pending
-    candidates: [KC, MVK]
+  # Play-In winner (Pool 4 slot, RULESET 4.1.1.1). source: LP_PLAYIN "Progressing Teams": Karmine Corp Q;
+  # final KC 3-0 MVK on 2026-10-18. LP_MAIN Pool 4 lists "EMEA Play-In Karmine Corp". (accessed 2026-10-19)
+  - {code: KC,   name: "Karmine Corp",          league: LEC,   seed: 3, tier: 4, oe_name: "Karmine Corp"}
 
 play_in:
   source: [RULESET 4.1.1, RULESET 4.2.1, LP_PLAYIN]
@@ -95,9 +89,10 @@ play_in:
     - {code: C9,  name: "Cloud9 Kia",   league: LCS,   seed: 3, oe_name: "Cloud9"}
     - {code: MVK, name: "MVK Esports",  league: LCP,   seed: 3, oe_name: "MVK Esports"}
     - {code: FUR, name: "FURIA",        league: CBLOL, seed: 2, oe_name: "FURIA"}
-  # LP_PLAYIN results: R1 MVK 3-0 FUR, KC 3-2 C9; R2 KC 3-0 MVK, FUR 3-1 C9; R3 MVK 3-1 FUR.
-  eliminated: [C9, FUR]
-  final: {teams: [KC, MVK], status: pending}
+  # LP_PLAYIN results: R1 MVK 3-0 FUR, KC 3-2 C9; R2 KC 3-0 MVK, FUR 3-1 C9; R3 MVK 3-1 FUR;
+  # final (qualification match, 2026-10-18) KC 3-0 MVK.
+  eliminated: [C9, FUR, MVK]
+  final: {teams: [KC, MVK], winner: KC, score: "3-0", status: decided}
 
 swiss:
   source: [RULESET 4.1.2, RULESET 4.3.2, RULESET 4.3.3, RULESET 4.1.4.3, PRIMER]
@@ -128,8 +123,19 @@ swiss:
     # in a future draw, the drawn team will move to the next available slot."
     conflict_rule: next_available_slot
     draw_date: 2026-10-18              # RULESET 4.3.5.1: immediately after Play-In matches on Oct 18
-    # Official Round-1 pairings, filled in once the draw is published. Empty => simulate the draw.
-    pairings: []
+    # Official Round-1 pairings. Empty => simulate the draw.
+    # source: LP_MAIN "Match Schedule" Round 1 and "VODs & Match Links" (accessed 2026-10-19; lolesports.com
+    # schedule still showed TBD slots at that time). Matches Oct 23, listed order; first team has first selection
+    # (higher regional seed, RULESET 4.1.4.3.1), BLG vs MKOI (both #2 seeds) blank = coinflip.
+    pairings:
+      - [GEN, IG]
+      - [TLAW, CFO]
+      - [AL, KC]
+      - [G2, DK]
+      - [HLE, TES]
+      - [LOS, T1]
+      - [TSW, LYON]
+      - [BLG, MKOI]
   later_rounds:
     # RULESET 4.3.3: rounds 2–5 pair teams with the same match record, randomly.
     pair_by: same_record

@@ -16,8 +16,8 @@ LEAGUES = load_leagues()
 RULES = SwissRules.from_config(WORLDS.swiss)
 
 
-def field(play_in_winner="KC", seed=0):
-    teams = [t for t in WORLDS.teams if t.status != "pending"] + [WORLDS.candidate(play_in_winner)]
+def field(seed=0):
+    teams = list(WORLDS.teams)
     regions = [LEAGUES.lookup(t.league, 2026)[0] for t in teams]
     s = np.random.default_rng(seed).normal(0, 1, len(teams))
     p = expit(s[:, None] - s[None, :])
