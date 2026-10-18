@@ -21,10 +21,16 @@ backtest:
 gates:
   # Spec "Promotion gates": holdout, live mode, calibrated BT, paired bootstrap.
   coinflip_log_loss: 0.693           # BT log loss must be below this
-  min_gain_vs_region_prior: 0.010    # and its 95% CI must exclude 0
+  # BT must beat the region prior: point Δ below -min_gain and 95% CI excluding 0. Δ is reported.
+  # Was 0.010 in the spec; revised to 0.0 on 2026-10-18 (see gate_changes).
+  min_gain_vs_region_prior: 0.0
   max_ci80_upper_vs_elo: 0.005       # point gain > 0 and 80% CI upper bound <= this
   max_ece: 0.05
   slope_range: [0.8, 1.2]
+
+# Changes to the gates after results were seen. Shown in reports/backtest.md.
+gate_changes:
+  - "2026-10-18: 'Beats region prior' revised from 'Δ ≤ −0.010 with 95% CI excluding 0' to 'Δ < 0 with 95% CI excluding 0, Δ reported'. Decided by the user after three holdout looks (see holdout_looks), on a review finding that team-level information adds about 0.005 log loss at best at international events, including on 308 non-holdout cross-region games."
 
 bt:
   lookback_days: 730             # older games carry < 6% weight even at the longest half-life

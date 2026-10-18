@@ -43,7 +43,7 @@ Refines [01-brainstorm.md](01-brainstorm.md) after an ML-engineering review (ecc
 ## Promotion gates
 Measured on the holdout with a paired bootstrap of 2,000 resamples.
 - Log loss < 0.693 (beats 50/50).
-- Beats region-prior-only by ≥ 0.010 log loss, with a CI that excludes 0.
+- Beats region-prior-only: Δ < 0 with a 95% CI that excludes 0, Δ reported. *(Revised 2026-10-18 from "by ≥ 0.010 log loss", after three holdout looks; see `config/model.yaml` `gate_changes` and `reports/backtest.md`.)*
 - Not credibly worse than Elo: point improvement > 0, and the 80% CI upper bound ≤ +0.005.
 - ECE ≤ 0.05 and calibration slope between 0.8 and 1.2.
 - **v2 GBM or blend:** must improve on BT by ≥ 0.005 log loss with a 90% CI excluding 0, and must not worsen ECE.

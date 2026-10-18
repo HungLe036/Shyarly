@@ -24,7 +24,7 @@ from shyarly import paths
 from shyarly.eval import metrics
 from shyarly.models.baselines import CoinFlip
 from shyarly.models.bt import BradleyTerry, BTParams
-from shyarly.models.calibration import apply_temperature, rolling_temperatures
+from shyarly.models.calibration import apply_temperature, fit_temperature, rolling_temperatures
 from shyarly.models.common import day_start
 from shyarly.models.elo import Elo, EloParams
 from shyarly.models.series import series_win_prob, side_averaged
@@ -103,6 +103,16 @@ def tune(kind: str, games: pd.DataFrame, cfg: dict) -> tuple[dict, pd.DataFrame]
 def event_order(games: pd.DataFrame, events: list[str]) -> list[str]:
     start = games[games["scored"] & games["event"].isin(events)].groupby("event")["date_utc"].min()
     return list(start.sort_values().index)
+
+
+def split_events(cfg: dict) -> list[str]:
+    return cfg["backtest"]["tune_events"] + cfg["backtest"]["holdout_events"]
+
+
+def production_temperature(preds: pd.DataFrame) -> float:
+    """T for predicting the next event: fitted on BT's live predictions for every backtest event."""
+    d = preds[(preds["model"] == "bt") & (preds["mode"] == "live")]
+    return fit_temperature(d["y"], d["p_raw"])
 
 
 def calibrate(preds: pd.DataFrame, order: list[str]) -> pd.DataFrame:
@@ -202,8 +212,8 @@ def evaluate_gates(preds: pd.DataFrame, cfg: dict, mode: str = "live", col: str 
         ("Beats 50/50", f"log loss {s['log_loss']:.4f}; Δ 95% CI [{coin['ci95'][0]:+.4f}, {coin['ci95'][1]:+.4f}]",
          f"< {g['coinflip_log_loss']}, CI < 0", s["log_loss"] < g["coinflip_log_loss"] and coin["ci95"][1] < 0),
         ("Beats region prior", f"Δ {rp['mean']:+.4f}; 95% CI [{rp['ci95'][0]:+.4f}, {rp['ci95'][1]:+.4f}]",
-         f"Δ ≤ −{g['min_gain_vs_region_prior']}, CI < 0",
-         rp["mean"] <= -g["min_gain_vs_region_prior"] and rp["ci95"][1] < 0),
+         (f"Δ ≤ −{g['min_gain_vs_region_prior']}" if g["min_gain_vs_region_prior"] else "Δ < 0") + ", 95% CI < 0",
+         rp["mean"] < 0 and rp["mean"] <= -g["min_gain_vs_region_prior"] and rp["ci95"][1] < 0),
         ("Not worse than Elo", f"Δ {elo['mean']:+.4f}; 80% CI upper {elo['ci80'][1]:+.4f}",
          f"Δ < 0, 80% upper ≤ +{g['max_ci80_upper_vs_elo']}",
          elo["mean"] < 0 and elo["ci80"][1] <= g["max_ci80_upper_vs_elo"]),
@@ -267,6 +277,14 @@ def write_report(result: BacktestResult, cfg: dict, series: pd.DataFrame, path=p
         "",
         "## Promotion gates — BT, holdout, live mode, calibrated",
         _fmt_table(gates),
+        "",
+        "### Gate changes",
+        *[f"- {change}" for change in cfg.get("gate_changes", [])],
+        "",
+        "## Production calibration",
+        f"Temperature for new predictions (fitted on BT live predictions for all {len(split_events(cfg))} "
+        f"backtest events): **T = {production_temperature(preds):.4f}**. Copy into `config/model.yaml` "
+        "`production.temperature` when it changes.",
         "",
         "## Holdout use",
         "The holdout has been looked at during development, and the final setup was chosen after "

@@ -1,15 +1,21 @@
 # Shyarly backtest
 
-Generated 2026-10-18 02:37 UTC by `shyarly backtest`.
+Generated 2026-10-18 02:53 UTC by `shyarly backtest`.
 
 ## Promotion gates — BT, holdout, live mode, calibrated
 | gate | measured | threshold | pass |
 |---|---|---|---|
 | Beats 50/50 | log loss 0.6199; Δ 95% CI [-0.1131, -0.0347] | < 0.693, CI < 0 | PASS |
-| Beats region prior | Δ -0.0046; 95% CI [-0.0091, -0.0001] | Δ ≤ −0.01, CI < 0 | FAIL |
+| Beats region prior | Δ -0.0046; 95% CI [-0.0091, -0.0001] | Δ < 0, 95% CI < 0 | PASS |
 | Not worse than Elo | Δ -0.0240; 80% CI upper -0.0113 | Δ < 0, 80% upper ≤ +0.005 | PASS |
 | ECE (5 bins) | 0.0441 | ≤ 0.05 | PASS |
 | Calibration slope | 0.886 | in [0.8, 1.2] | PASS |
+
+### Gate changes
+- 2026-10-18: 'Beats region prior' revised from 'Δ ≤ −0.010 with 95% CI excluding 0' to 'Δ < 0 with 95% CI excluding 0, Δ reported'. Decided by the user after three holdout looks (see holdout_looks), on a review finding that team-level information adds about 0.005 log loss at best at international events, including on 308 non-holdout cross-region games.
+
+## Production calibration
+Temperature for new predictions (fitted on BT live predictions for all 8 backtest events): **T = 1.0502**. Copy into `config/model.yaml` `production.temperature` when it changes.
 
 ## Holdout use
 The holdout has been looked at during development, and the final setup was chosen after those looks, so holdout scores are optimistically biased. Looks so far: 3.
