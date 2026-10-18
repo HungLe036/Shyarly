@@ -4,7 +4,9 @@
 
 r are region offsets, u are team-season deviations within region, beta is the blue-side
 advantage. Each game is weighted by 0.5 ** (age / half_life), times `intl_weight` for
-cross-region games. Ridge penalties shrink u (lambda_team) harder than r; minor regions
+cross-region games. Cross-region games, the only ones that move r, can use their own
+longer half-life (`half_life_intl_days`) so region offsets keep a longer memory than
+team form. Ridge penalties shrink u (lambda_team) harder than r; minor regions
 get a smaller penalty (wider prior) so they can sit far from the average region.
 With `use_teams=False` this is the region-prior-only baseline.
 """
@@ -31,6 +33,7 @@ class BTParams:
     intl_weight: float
     lookback_days: float
     minor_regions: tuple[str, ...] = ()
+    half_life_intl_days: float | None = None   # None: cross-region games use half_life_days
 
 
 @dataclass
@@ -56,7 +59,9 @@ class BradleyTerry:
             return BTFit()
 
         age = (cutoff - train["date_utc"]).dt.total_seconds().to_numpy() / 86400.0
-        w = 0.5 ** (age / p.half_life_days) * np.where(train["cross_region"].to_numpy(), p.intl_weight, 1.0)
+        cross = train["cross_region"].to_numpy()
+        half_life = np.where(cross, p.half_life_intl_days or p.half_life_days, p.half_life_days)
+        w = 0.5 ** (age / half_life) * np.where(cross, p.intl_weight, 1.0)
         y = train["blue_win"].to_numpy(dtype=float)
 
         regions = sorted(set(train["blue_region"]) | set(train["red_region"]))

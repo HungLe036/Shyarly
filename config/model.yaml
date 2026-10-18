@@ -17,11 +17,14 @@ bt:
   # Regions whose prior is wider (smaller ridge penalty): few international games, can sit far from average.
   minor_regions: [LCP, CBLOL, VCS, LLA, LJL, LCO, TCL]
   grid:
-    half_life_days: [60, 90, 120, 180]  # spec: "tune 60–180 days"
-    lambda_team: [1.0, 2.0, 4.0, 8.0, 16.0]
-    lambda_region_major: [0.1, 0.5]
-    lambda_region_minor: [0.01, 0.1]
-    intl_weight: [1.0, 2.0, 4.0]
+    half_life_days: [60, 120, 180]        # domestic games; spec: "tune 60–180 days"
+    # Cross-region games (the only ones that move region offsets) get their own, longer memory.
+    # Added after M2: one shared half-life forced a trade-off between team form and region strength.
+    half_life_intl_days: [180, 365, 730]
+    lambda_team: [2.0, 4.0, 8.0, 16.0]
+    lambda_region_major: [0.1]            # chosen in every M2 tuning run
+    lambda_region_minor: [0.1, 2.0]
+    intl_weight: [1.0, 2.0]
 
 region_prior:
   lookback_days: 730

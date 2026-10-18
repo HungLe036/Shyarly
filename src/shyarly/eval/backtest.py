@@ -56,6 +56,7 @@ def build_model(kind: str, params: dict, cfg: dict):
         intl_weight=params["intl_weight"],
         lookback_days=section["lookback_days"],
         minor_regions=tuple(section["minor_regions"]),
+        half_life_intl_days=params.get("half_life_intl_days"),
     )
     return BradleyTerry(bt, use_teams=(kind == "bt"))
 
@@ -189,6 +190,8 @@ def write_report(result: BacktestResult, cfg: dict, path=paths.BACKTEST_REPORT) 
         "- **Live mode:** each game uses only games before its UTC day. **Pre-event mode:** each event's games use only "
         "games before the event's first day.",
         f"- **Tuning:** grid search on the tune events in `{bt_cfg['tune_mode']}` mode, log loss; params then frozen.",
+        "- **BT decay:** domestic games use `half_life_days` (60–180 per spec); cross-region games use their own "
+        "`half_life_intl_days`, so region offsets can keep a longer memory than team form (added after M2).",
         f"- **Bootstrap:** {bt_cfg['bootstrap_resamples']} resamples of whole series (seed {cfg['seed']}).",
         f"- **Data snapshot (OE sha256):** {snap}.",
         "",

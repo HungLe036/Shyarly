@@ -1,6 +1,8 @@
 """Model behaviour and the hard no-leakage rule: changing or adding rows dated on or
 after a prediction's cutoff day must not change that prediction."""
 
+from dataclasses import replace
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -18,10 +20,14 @@ BT = BTParams(half_life_days=3650, lambda_team=0.5, lambda_region_major=0.1,
               lambda_region_minor=0.1, intl_weight=1.0, lookback_days=3650, minor_regions=())
 
 
+BT_SPLIT = replace(BT, half_life_days=90, half_life_intl_days=730)
+
+
 def all_models():
     return [
         CoinFlip(),
         BradleyTerry(BT),
+        BradleyTerry(BT_SPLIT),
         BradleyTerry(BT, use_teams=False),
         Elo(EloParams(k_team=24, k_region=8, season_carry=0.75)),
     ]
@@ -88,6 +94,16 @@ def test_bt_is_antisymmetric_apart_from_side(synth_games):
     z = np.log(m.predict(synth_games, q) / (1 - m.predict(synth_games, q)))
     zs = np.log(m.predict(synth_games, swapped) / (1 - m.predict(synth_games, swapped)))
     np.testing.assert_allclose(z - fit.beta, -(zs - fit.beta), atol=1e-9)
+
+
+def test_intl_half_life_defaults_to_domestic(synth_games):
+    q = make_queries(synth_games, CUTOFF)
+    short = replace(BT, half_life_days=90)
+    same = BradleyTerry(replace(short, half_life_intl_days=90)).predict(synth_games, q)
+    default = BradleyTerry(short).predict(synth_games, q)
+    np.testing.assert_array_equal(same, default)
+    longer = BradleyTerry(replace(short, half_life_intl_days=730)).predict(synth_games, q)
+    assert not np.allclose(longer, default)
 
 
 def test_unknown_team_gets_region_strength(synth_games):
