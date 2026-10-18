@@ -99,6 +99,13 @@ def load_leagues(path: Path = paths.LEAGUES_CONFIG) -> LeagueMap:
     )
 
 
+# ------------------------------------------------------------------- model.yaml
+
+
+def load_model_config(path: Path = paths.MODEL_CONFIG) -> dict[str, Any]:
+    return _read_yaml(path)
+
+
 # -------------------------------------------------------------- worlds2026.yaml
 
 

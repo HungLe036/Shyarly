@@ -6,7 +6,8 @@ import logging
 
 import typer
 
-from shyarly.config import load_leagues, load_sources
+from shyarly import paths
+from shyarly.config import load_leagues, load_model_config, load_sources
 from shyarly.data import fetch, games
 
 app = typer.Typer(help="Worlds 2026 win probabilities and Swiss simulation.", no_args_is_help=True)
@@ -29,6 +30,20 @@ def ingest(refresh: bool = typer.Option(False, help="Re-download years listed in
     g = games.write_processed(load_leagues())
     typer.echo(f"games.parquet: {len(g):,} games, {g['date_utc'].min():%Y-%m-%d} .. {g['date_utc'].max():%Y-%m-%d}")
     typer.echo(f"cross-region games: {int(g['cross_region'].sum()):,}; scored (Worlds/MSI main) games: {int(g['scored'].sum()):,}")
+
+
+@app.command()
+def backtest() -> None:
+    """Tune on 2022–23 events, score Worlds/MSI holdout events, write reports/backtest.md."""
+    import pandas as pd
+
+    from shyarly.eval.backtest import run_backtest, write_report
+
+    cfg = load_model_config()
+    result = run_backtest(pd.read_parquet(paths.GAMES_PARQUET), cfg)
+    result.predictions.to_parquet(paths.BACKTEST_PREDICTIONS, index=False)
+    write_report(result, cfg)
+    typer.echo(f"Wrote {paths.BACKTEST_REPORT.relative_to(paths.ROOT)} and {paths.BACKTEST_PREDICTIONS.relative_to(paths.ROOT)}")
 
 
 if __name__ == "__main__":

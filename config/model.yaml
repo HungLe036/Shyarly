@@ -1,0 +1,40 @@
+# Model and backtest settings. Modelling choices, not tournament facts.
+
+seed: 20261018
+
+backtest:
+  # Spec (docs/02-refined-plan.md "Splits")
+  tune_events: ["WLDs 2022", "MSI 2023", "WLDs 2023"]
+  holdout_events: ["MSI 2024", "WLDs 2024", "MSI 2025", "WLDs 2025", "MSI 2026"]
+  modes: [live, pre_event]       # live = refit before each UTC match day; pre_event = freeze at event start
+  tune_mode: pre_event           # cheap: one fit per event per config
+  bootstrap_resamples: 2000      # spec "Promotion gates"
+  bootstrap_unit: series_id      # games in a series are correlated, so resample whole series
+  ece_bins: 5
+
+bt:
+  lookback_days: 730             # older games carry < 6% weight even at the longest half-life
+  # Regions whose prior is wider (smaller ridge penalty): few international games, can sit far from average.
+  minor_regions: [LCP, CBLOL, VCS, LLA, LJL, LCO, TCL]
+  grid:
+    half_life_days: [60, 90, 120, 180]  # spec: "tune 60–180 days"
+    lambda_team: [1.0, 2.0, 4.0, 8.0, 16.0]
+    lambda_region_major: [0.1, 0.5]
+    lambda_region_minor: [0.01, 0.1]
+    intl_weight: [1.0, 2.0, 4.0]
+
+region_prior:
+  lookback_days: 730
+  minor_regions: [LCP, CBLOL, VCS, LLA, LJL, LCO, TCL]
+  grid:
+    half_life_days: [60, 90, 120, 180, 365, 730]
+    lambda_region_major: [0.03, 0.1, 0.5, 2.0]
+    lambda_region_minor: [0.01, 0.1, 0.5, 2.0]
+    intl_weight: [1.0]           # only cross-region games inform region offsets anyway
+
+elo:
+  grid:
+    # Cross-region games are rare, so region offsets need a large K to move at all.
+    k_team: [4, 8, 16, 24, 32]
+    k_region: [8, 16, 32, 64, 128, 256]
+    season_carry: [0.25, 0.5, 0.75, 1.0]   # team rating multiplier per calendar-year boundary
