@@ -20,3 +20,6 @@ Thumbs.db
 
 # graphify knowledge graph (generated locally, goes stale)
 graphify-out/
+
+# local secrets (API keys)
+.env
