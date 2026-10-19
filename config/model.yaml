@@ -51,6 +51,32 @@ gates:
 gate_changes:
   - "2026-10-18: 'Beats region prior' revised from 'Δ ≤ −0.010 with 95% CI excluding 0' to 'Δ < 0 with 95% CI excluding 0, Δ reported'. Decided by the user after three holdout looks (see holdout_looks), on a review finding that team-level information adds about 0.005 log loss at best at international events, including on 308 non-holdout cross-region games."
 
+# Variants run next to production, predictions logged but not used for the odds. Each entry is
+# written down BEFORE its results are seen; the decision follows `promote_if` and nothing else.
+shadow_models:
+  margin_bt:
+    registered: "2026-10-19, before any Worlds 2026 Swiss game was played"
+    idea: >-
+      BT plus a Gaussian term on the gold difference at 15 minutes (blue minus red), for games where
+      Oracle's Elixir has it. Games without it (all LPL games in 2022-2025, about 20% of LPL 2026,
+      MSI 2024) contribute only their win/loss term, so missing data makes estimates less precise
+      but not biased. Loss = BT loss + margin_weight * sum_i w_i (gd15_i / c - z_i)^2 / (2 sigma^2),
+      where z_i is the same BT logit as in the win term (side term included) and w_i the same
+      time-decay weight. Implemented in models/bt.py (BTParams.margin_weight > 0).
+    scale: >-
+      c (gold per logit unit) and sigma (residual sd in logit units) are fitted once, by regressing
+      gd15 on the production BT logit, on games dated before 2022-09-29 (start of Worlds 2022, the
+      first tune event), and then frozen.
+    grid:
+      margin_weight: [0.5, 1.0]      # every other parameter = production.bt_params
+    temperature: "fitted like production: rolling, then on all eight backtest events"
+    select: "margin_weight with the lower calibrated pre_event log loss on the tune events"
+    promote_if:
+      - "Δ log loss vs production < 0 on the tune events (pre_event mode, calibrated)"
+      - "Δ game log loss vs production < 0 on Worlds 2026 Swiss games (live mode, predictions_log.csv)"
+    report_only: "holdout events (this run is recorded as holdout look 4)"
+    decision_date: "2026-11-01, after Swiss Round 5"
+
 bt:
   lookback_days: 730             # older games carry < 6% weight even at the longest half-life
   # Regions whose prior is wider (smaller ridge penalty): few international games, can sit far from average.

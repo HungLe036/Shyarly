@@ -17,6 +17,7 @@ sources:
   PRIMER: "https://lolesports.com/en-US/news/worlds-2026-primer"
   LP_MAIN: "https://lol.fandom.com/wiki/2026_Season_World_Championship/Main_Event"
   LP_PLAYIN: "https://lol.fandom.com/wiki/2026_Season_World_Championship/Play-In"
+  OE: "https://oracleselixir.com/tools/downloads"
 
 event:
   source: [RULESET 4.4.1, RULESET 5.1, PRIMER]
@@ -149,6 +150,25 @@ swiss:
     eliminated_round3: "15-16"
     eliminated_round4: "12-14"
     eliminated_round5: "9-11"
+
+roster_changes:
+  # Spec "roster_flags": mid-year lineup changes for the 16 Swiss teams. Derived from the player
+  # rows of the OE 2026 file (sha256 86414222c2e9, fetched 2026-10-19), not from memory:
+  # current lineup = most frequent player per role in the team's last 10 games.
+  # weight_on_current = share of the team's 60-day-decayed game weight (cutoff 2026-10-19) from
+  # games with at least 4 of the 5 current starters. The other 11 teams: one lineup all year,
+  # or >= 91% of the weight on the current lineup.
+  source: [OE]
+  decision: >-
+    No roster adjustment before Swiss: the 60-day half-life already puts >= 91% of the weight on
+    the current lineup for every team except IG (76%). IG's rating still carries about a quarter
+    of older lineups; treat its odds with extra caution.
+  teams:
+    - {code: AL,  current_five_since: 2026-07-23, change: "top", weight_on_current: 1.00}
+    - {code: LOS, current_five_since: 2026-05-03, change: "jng", weight_on_current: 1.00}
+    - {code: CFO, current_five_since: 2026-04-18, change: "mid, sup", weight_on_current: 0.93}
+    - {code: TES, current_five_since: 2026-07-22, change: "top, jng, bot, sup", weight_on_current: 0.93}
+    - {code: IG,  current_five_since: 2026-08-16, change: "top, mid, bot, sup (several rotations)", weight_on_current: 0.76}
 
 knockout:
   source: [RULESET 4.1.3, RULESET 4.3.4, RULESET 4.1.4.4]

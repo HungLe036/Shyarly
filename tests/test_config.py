@@ -112,7 +112,7 @@ def test_best_of_matches_ruleset_round_counts():
 
 
 def test_every_rule_block_cites_a_source():
-    for block in ("event", "berths", "play_in", "swiss", "knockout"):
+    for block in ("event", "berths", "play_in", "swiss", "knockout", "roster_changes"):
         refs = CFG.raw[block]["source"]
         assert refs, block
         for ref in refs:
