@@ -23,6 +23,17 @@ leaguepedia:
   backoff_s: 30.0
   user_agent: "Shyarly/0.1 (personal research project; cached, throttled)"
 
+oddspapi:
+  # source: https://oddspapi.io/us/docs (v4) and .../requests-and-quota (read 2026-10-19).
+  # Key: ODDSPAPI_KEY in the environment or in .env at the repo root (gitignored). Never committed.
+  # Free plan: 250 billable requests per month. /v4/historical-odds and /v4/account are free.
+  base_url: "https://api.oddspapi.io/v4"
+  sport_id: 18                      # ESport League of Legends
+  bookmakers: [pinnacle]            # sharp benchmark; up to 3 per call
+  match_winner_market: 171          # outcomes 171 = participant 1, 172 = participant 2
+  monthly_budget: 200               # hard stop for billable calls, leaving 50 spare
+  min_interval_s: 1.0
+
 rules:
   # source: https://competitiveops.riotgames.com/en-US/library -> "2026 World Championship Event Specific Ruleset" (published 2026-09-01)
   worlds2026_ruleset_pdf: "https://cdn.sanity.io/files/dsfx7636/news_live/faa5ce974e58615911fbee931c6123e2785a8b46.pdf"
