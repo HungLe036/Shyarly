@@ -23,8 +23,8 @@ Championship 2026** Swiss Stage (Allen, TX, Oct 23–31; 16 teams, 8 advance).
 92 tests pass (`uv run pytest`), plus a slow 50k-run seed-stability test (`uv run pytest -m slow`).
 
 **Field and Round 1 draw are final (2026-10-19):** Karmine Corp won the Play-In (3-0 over MVK) and
-the official Round 1 pairings are in `config/worlds2026.yaml`. The model data runs to Oct 17 games;
-Oracle's Elixir had not yet added the Play-In final when it was last refreshed.
+the official Round 1 pairings are in `config/worlds2026.yaml`. The model data runs through the
+Play-In final on Oct 18.
 
 ## Quick start (Windows)
 
@@ -141,9 +141,9 @@ For series, the Bo-formula beats using the raw game probability: holdout Bo5 log
   - Qualify % sums to 800%.
 - **Speed:** 50,000 runs take about 10 seconds.
 
-Current qualify odds (50k runs with posterior draws, official Round 1 draw, games through Oct 17):
-Gen.G 85%, T1 85%, HLE 84%, DK 83%, BLG 73%, AL 62%, IG 58%, TES 55%, G2 44%, KC 42%, MKOI 36%,
-TLAW 32%, LYON 30%, TSW 13%, LØS 10%, CFO 10%. The full table is in [reports/swiss_odds.md](reports/swiss_odds.md).
+Current qualify odds (50k runs with posterior draws, official Round 1 draw, games through Oct 18):
+Gen.G 86%, T1 85%, HLE 84%, DK 83%, BLG 72%, AL 61%, IG 57%, TES 54%, G2 45%, KC 44%, MKOI 37%,
+TLAW 32%, LYON 29%, TSW 12%, LØS 10%, CFO 10%. The full table is in [reports/swiss_odds.md](reports/swiss_odds.md).
 
 ## Decisions and deviations from the spec
 
