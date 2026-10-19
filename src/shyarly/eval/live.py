@@ -26,10 +26,16 @@ from shyarly.models.common import day_start
 from shyarly.models.predictor import Predictor, TeamRef
 from shyarly.models.series import series_win_prob
 
-LOG_COLUMNS = ["match_id", "stage", "round", "team_a", "team_b", "match_date_utc", "best_of", "mode",
+LOG_COLUMNS = ["match_id", "stage", "round", "team_a", "team_b", "match_date_utc", "best_of", "model", "mode",
                "cutoff_utc", "p_game_a", "p_series_a", "logged_at_utc", "git_commit", "config_hash"]
 MODES = ("pre_event", "live")
-SCORE_COLUMNS = ["mode", "n_series", "series_log_loss", "series_brier", "n_games", "game_log_loss"]
+KEY = ["match_id", "model", "mode"]
+SCORE_COLUMNS = ["model", "mode", "n_series", "series_log_loss", "series_brier", "n_games", "game_log_loss"]
+
+
+def _with_model(log: pd.DataFrame) -> pd.DataFrame:
+    """Logs written before the `model` column existed hold production BT predictions."""
+    return log.assign(model=log["model"].fillna("bt")) if "model" in log else log.assign(model="bt")
 
 
 def stage_starts(worlds: WorldsConfig) -> dict[str, pd.Timestamp]:
@@ -55,7 +61,7 @@ def provenance(config_paths: tuple[Path, ...] = (paths.MODEL_CONFIG, paths.WORLD
 
 def due_predictions(rows: list[MatchRow], best_of: dict[str, int], predictor_at: Callable[[pd.Timestamp], Predictor],
                     ref: Callable[[str], TeamRef], starts: dict[str, pd.Timestamp], now: pd.Timestamp,
-                    provenance: dict[str, str]) -> pd.DataFrame:
+                    provenance: dict[str, str], model: str = "bt") -> pd.DataFrame:
     """Predictions whose cutoff has passed, for every match with a known pairing and best-of."""
     cache: dict[pd.Timestamp, Predictor] = {}
     out = []
@@ -73,7 +79,7 @@ def due_predictions(rows: list[MatchRow], best_of: dict[str, int], predictor_at:
             p_game = float(cache[cutoff].p_game(ref(r.team_a), ref(r.team_b)))
             out.append({
                 "match_id": r.match_id, "stage": r.stage, "round": r.round, "team_a": r.team_a, "team_b": r.team_b,
-                "match_date_utc": r.date_utc.isoformat(), "best_of": bo, "mode": mode,
+                "match_date_utc": r.date_utc.isoformat(), "best_of": bo, "model": model, "mode": mode,
                 "cutoff_utc": cutoff.isoformat(), "p_game_a": p_game, "p_series_a": float(series_win_prob(p_game, bo)),
                 "logged_at_utc": now.isoformat(), **provenance,
             })
@@ -81,12 +87,13 @@ def due_predictions(rows: list[MatchRow], best_of: dict[str, int], predictor_at:
 
 
 def append_log(path: Path, new: pd.DataFrame) -> int:
-    """Append rows for (match_id, mode) pairs not yet in the log. Returns how many were added."""
+    """Append rows for (match_id, model, mode) not yet in the log. Returns how many were added."""
     path = Path(path)
-    old = pd.read_csv(path, dtype={"round": str}) if path.exists() else pd.DataFrame(columns=LOG_COLUMNS)
-    have = set(zip(old["match_id"], old["mode"]))
-    add = new[[(m, md) not in have for m, md in zip(new["match_id"], new["mode"])]]
-    if not path.exists() or len(add):
+    old = _with_model(pd.read_csv(path, dtype={"round": str})) if path.exists() else pd.DataFrame(columns=LOG_COLUMNS)
+    new = _with_model(new)
+    have = set(map(tuple, old[KEY].to_numpy()))
+    add = new[[k not in have for k in map(tuple, new[KEY].to_numpy())]]
+    if not path.exists() or len(add) or list(pd.read_csv(path, nrows=0).columns) != LOG_COLUMNS:
         path.parent.mkdir(parents=True, exist_ok=True)
         pd.concat([old, add], ignore_index=True)[LOG_COLUMNS].to_csv(path, index=False)
     return len(add)
@@ -96,9 +103,9 @@ def score_log(log: pd.DataFrame, rows: list[MatchRow]) -> pd.DataFrame:
     """Log loss and Brier of the first logged prediction per (match, mode), on played matches.
     Game log loss uses the series score: each game is a Bernoulli trial with p_game."""
     played = {r.match_id: r for r in rows if r.winner is not None and r.score is not None}
-    first = log.drop_duplicates(["match_id", "mode"], keep="first")
+    first = _with_model(log).drop_duplicates(KEY, keep="first")
     out = []
-    for mode, grp in first.groupby("mode", sort=False):
+    for (model, mode), grp in first.groupby(["model", "mode"], sort=False):
         ll, br, gll, n_games = [], [], 0.0, 0
         for rec in grp.to_dict("records"):
             r = played.get(rec["match_id"])
@@ -114,7 +121,7 @@ def score_log(log: pd.DataFrame, rows: list[MatchRow]) -> pd.DataFrame:
             gll += -(wa * np.log(pg) + wb * np.log(1 - pg))
             n_games += wa + wb
         if ll:
-            out.append({"mode": mode, "n_series": len(ll), "series_log_loss": float(np.mean(ll)),
+            out.append({"model": model, "mode": mode, "n_series": len(ll), "series_log_loss": float(np.mean(ll)),
                         "series_brier": float(np.mean(br)), "n_games": n_games, "game_log_loss": gll / n_games})
     return pd.DataFrame(out, columns=SCORE_COLUMNS)
 
@@ -128,21 +135,23 @@ def live_markdown(scores: pd.DataFrame, log: pd.DataFrame, rows: list[MatchRow])
     if scores.empty:
         lines += ["No played matches with a logged prediction yet.", ""]
     else:
-        lines += ["| mode | series | series log loss | series Brier | games | game log loss |", "|---|---|---|---|---|---|"]
+        lines += ["| model | mode | series | series log loss | series Brier | games | game log loss |",
+                  "|---|---|---|---|---|---|---|"]
         for s in scores.to_dict("records"):
-            lines.append(f"| {s['mode']} | {s['n_series']} | {s['series_log_loss']:.4f} | {s['series_brier']:.4f} | "
+            lines.append(f"| {s['model']} | {s['mode']} | {s['n_series']} | {s['series_log_loss']:.4f} | {s['series_brier']:.4f} | "
                          f"{s['n_games']} | {s['game_log_loss']:.4f} |")
         lines.append("")
     played = {r.match_id: r for r in rows if r.winner}
-    first = log.drop_duplicates(["match_id", "mode"], keep="first")
+    first = _with_model(log).drop_duplicates(KEY, keep="first")
     if len(first):
-        lines += ["## Logged predictions", "", "| match | Bo | mode | P(team_a wins) | result | logged at | commit |",
-                  "|---|---|---|---|---|---|---|"]
+        lines += ["## Logged predictions", "",
+                  "| match | Bo | model | mode | P(team_a wins) | result | logged at | commit |",
+                  "|---|---|---|---|---|---|---|---|"]
         for rec in first.to_dict("records"):
             r = played.get(rec["match_id"])
             res = f"{r.winner} {r.score[0]}-{r.score[1]}" if r else "—"
             lines.append(f"| {rec['team_a']} vs {rec['team_b']} ({rec['stage']} {rec['round']}) | {rec['best_of']} | "
-                         f"{rec['mode']} | {100 * rec['p_series_a']:.1f}% | {res} | {str(rec['logged_at_utc'])[:16]} | "
+                         f"{rec['model']} | {rec['mode']} | {100 * rec['p_series_a']:.1f}% | {res} | {str(rec['logged_at_utc'])[:16]} | "
                          f"{rec['git_commit']} |")
         lines.append("")
     return "\n".join(lines)

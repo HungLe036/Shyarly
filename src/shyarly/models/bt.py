@@ -39,6 +39,11 @@ class BTParams:
     lookback_days: float
     minor_regions: tuple[str, ...] = ()
     half_life_intl_days: float | None = None   # None: cross-region games use half_life_days
+    # Shadow model margin_bt (config/model.yaml shadow_models): games with a gold difference at
+    # 15:00 add 0.5 * margin_weight * w * (gd15 / margin_scale - z)^2 / margin_sigma^2 to the loss.
+    margin_weight: float = 0.0
+    margin_scale: float | None = None          # gold per logit unit
+    margin_sigma: float = 1.0                  # residual sd of gd15 / margin_scale, in logit units
 
 
 @dataclass
@@ -63,6 +68,8 @@ class _Problem:
     w: np.ndarray
     pen: np.ndarray
     index: dict[tuple[str, str], int]
+    m: np.ndarray | None = None      # gold margin target in logit units (0 where missing)
+    mw: np.ndarray | None = None     # per-game margin precision weight (0 where missing)
 
 
 class BradleyTerry:
@@ -80,7 +87,11 @@ class BradleyTerry:
     def _loss_grad(prob: _Problem, theta: np.ndarray):
         z = prob.X @ theta
         loss = np.sum(prob.w * (np.logaddexp(0.0, z) - prob.y * z)) + np.sum(prob.pen * theta**2)
-        grad = prob.X.T @ (prob.w * (expit(z) - prob.y)) + 2 * prob.pen * theta
+        resid = prob.w * (expit(z) - prob.y)
+        if prob.mw is not None:
+            loss += 0.5 * np.sum(prob.mw * (z - prob.m) ** 2)
+            resid = resid + prob.mw * (z - prob.m)
+        grad = prob.X.T @ resid + 2 * prob.pen * theta
         return loss, grad
 
     def _problem(self, games: pd.DataFrame, cutoff: pd.Timestamp) -> _Problem | None:
@@ -117,7 +128,16 @@ class BradleyTerry:
         pen[1 + len(regions):] = p.lambda_team
 
         index = {("beta", ""): 0} | {("region", r): i for r, i in r_idx.items()} | {("team", t): i for t, i in t_idx.items()}
-        return _Problem(X, y, w, pen, index)
+        m = mw = None
+        if p.margin_weight > 0 and "gd15" in train:
+            if not p.margin_scale:
+                raise ValueError("margin_weight > 0 needs margin_scale (gold per logit unit)")
+            gd = train["gd15"].to_numpy(dtype=float)
+            has = np.isfinite(gd)
+            if has.any():
+                m = np.where(has, gd / p.margin_scale, 0.0)
+                mw = np.where(has, p.margin_weight * w / p.margin_sigma**2, 0.0)
+        return _Problem(X, y, w, pen, index, m, mw)
 
     def fit(self, games: pd.DataFrame, cutoff: pd.Timestamp, with_cov: bool = False) -> BTFit:
         prob = self._problem(games, cutoff)
@@ -131,7 +151,7 @@ class BradleyTerry:
         if with_cov:
             z = prob.X @ theta
             pz = expit(z)
-            curv = prob.w * pz * (1.0 - pz)
+            curv = prob.w * pz * (1.0 - pz) + (prob.mw if prob.mw is not None else 0.0)
             hess = (prob.X.T @ prob.X.multiply(curv[:, None])).toarray() + np.diag(2 * prob.pen)
             cov = np.linalg.inv(hess)
             cov = (cov + cov.T) / 2

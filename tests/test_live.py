@@ -95,6 +95,25 @@ def test_append_keeps_first_prediction(tmp_path):
     assert len(log) == 4 and (log["git_commit"] == "abc123").sum() == 3
 
 
+def test_models_are_logged_and_scored_separately(tmp_path):
+    rs = rows(tmp_path)
+    path = tmp_path / "log.csv"
+    # an older log without the model column holds production rows
+    pd.DataFrame(columns=[c for c in LOG_COLUMNS if c != "model"]).to_csv(path, index=False)
+    now = pd.Timestamp("2026-10-23T09:00", tz="UTC")
+    args = (rs, best_of(rs), predictor_at, ref, stage_starts(WORLDS))
+    assert append_log(path, due_predictions(*args, now=now, provenance=PROV)) == 3
+    assert append_log(path, due_predictions(*args, now=now, provenance=PROV, model="margin_bt")) == 3
+    assert append_log(path, due_predictions(*args, now=now, provenance=PROV, model="margin_bt")) == 0
+    log = pd.read_csv(path)
+    assert list(log.columns) == LOG_COLUMNS
+    assert sorted(log["model"].value_counts().items()) == [("bt", 3), ("margin_bt", 3)]
+    played = [r.__class__(**{**r.__dict__, "winner": r.team_a, "score": (1, 0)}) for r in rs]
+    s = score_log(log, played)
+    assert set(zip(s["model"], s["mode"])) == {("bt", "pre_event"), ("bt", "live"),
+                                               ("margin_bt", "pre_event"), ("margin_bt", "live")}
+
+
 def test_score_log(tmp_path):
     rs = rows(tmp_path, extra=())
     played = [r.__class__(**{**r.__dict__, "winner": r.team_a if k == 0 else r.team_b,

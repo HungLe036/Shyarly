@@ -20,10 +20,11 @@ Knockout Stage through the final (Brooklyn, Nov 14).
 | M2 — baselines (50/50, region prior, Elo) and Bradley-Terry, backtest | done | `38a6cba`, `e2fbbcb` |
 | M3 — temperature calibration, series probabilities, gates | done | `2c434f7`, `4678d8d` |
 | M4 — Swiss Monte Carlo, `predict` and `simulate` CLI | done | `d33deb3` |
-| M5 — daily update from live results (`shyarly update`), prediction log | done | this commit |
-| M6 — knockout sim, champion %, Streamlit page | done | `01f19f4`, this commit |
+| M5 — daily update from live results (`shyarly update`), prediction log | done | `01f19f4` |
+| M6 — knockout sim, champion %, Streamlit page | done | `01f19f4`, `b4bfc30` |
+| Shadow model `margin_bt` (gold difference at 15:00), pre-registered | logging; decision Nov 1 | `217b75a`, this commit |
 
-153 tests pass (`uv run pytest`), plus a slow 50k-run seed-stability test (`uv run pytest -m slow`).
+160 tests pass (`uv run pytest`), plus a slow 50k-run seed-stability test (`uv run pytest -m slow`).
 
 **Field and Round 1 draw are final (2026-10-19):** Karmine Corp won the Play-In (3-0 over MVK) and
 the official Round 1 pairings are in `config/worlds2026.yaml`. The model data runs through the
@@ -48,6 +49,7 @@ shyarly backtest                                                  # tune, score 
 shyarly predict match "<Team A>" "<Team B>" --bo 3 [--as-of DATE] # one game and best-of-N series
 shyarly simulate --stage swiss|tournament [--runs N] [--as-of DATE] [--seed N] [--posterior|--point] [--no-results]
 shyarly update [--no-fetch]                                       # daily during Worlds (see below)
+shyarly shadow                                                    # pre-registered shadow model run -> reports/shadow_margin.md
 ```
 
 You can name a team by its Worlds code (`GEN`), its Worlds name, or its Oracle's Elixir name.
@@ -174,6 +176,18 @@ All of these are recorded in the configs and in [reports/backtest.md](reports/ba
    use randomized backtracking.
 6. **What the model can't see:** rosters, drafts, patch 26.20 and Play-In form beyond the games in
    the data. Same-region teams come out close together because the model leans on region strength.
+7. **Roster changes (checked, no adjustment).** From Oracle's Elixir player rows, five teams changed
+   lineups in 2026 (AL, LØS, CFO, TES, IG; `roster_changes` in `config/worlds2026.yaml`). The
+   60-day half-life already puts at least 91% of each team's weight on its current lineup, except
+   IG (76%; current five since Aug 16), whose odds deserve extra caution.
+8. **Shadow model `margin_bt`, pre-registered before Swiss.** BT plus the gold difference at
+   15:00 as extra evidence. Oracle's Elixir has no gold data for the LPL in 2022–2025 (about 80%
+   in 2026) or for MSI 2024, so the gold term only adds information where it exists; it never
+   replaces a win/loss. The rules (`shadow_models.margin_bt` in `config/model.yaml`, committed in
+   `217b75a` before running) say it replaces production only if it beats it on the tune events
+   *and* on Worlds 2026 Swiss games. Result so far ([reports/shadow_margin.md](reports/shadow_margin.md)):
+   tune Δ −0.0024 (95% CI [−0.019, +0.015]), so condition 1 passes, barely; holdout (report only,
+   look 4) Δ −0.0015. Its predictions are logged next to production's from Oct 23; decision Nov 1.
 
 ## During Worlds: the daily routine
 
@@ -202,8 +216,9 @@ All of these are recorded in the configs and in [reports/backtest.md](reports/ba
 **Prediction log (the fresh holdout).** Every match gets two predictions: *pre-event* (model
 trained on games before the stage started: Oct 23 for Swiss, Nov 3 for knockouts) and *live*
 (games before the match's UTC day). A prediction is logged only after its cutoff has passed,
-and the log is append-only: the first row per match and mode is the one scored, and each row
-records the commit and a config hash. Run `update` early on each match day (before 17:00 UTC)
+and the log is append-only: the first row per match, model and mode is the one scored, and each
+row records the commit and a config hash. Production BT (`model = bt`) drives the odds; the
+fitted shadow model is logged as `model = margin_bt` and only scored. Run `update` early on each match day (before 17:00 UTC)
 so the live predictions are logged before the games start.
 
 **Odds model for the bracket:** each 3-0 team meets a random 3-2 team, those two matches sit on

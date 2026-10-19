@@ -18,6 +18,7 @@ import unicodedata
 from collections import Counter, defaultdict
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from shyarly import paths
@@ -25,7 +26,8 @@ from shyarly.config import LeagueMap
 
 log = logging.getLogger(__name__)
 
-OE_COLUMNS = ["gameid", "date", "league", "game", "patch", "playoffs", "split", "position", "side", "teamname", "result"]
+OE_COLUMNS = ["gameid", "date", "league", "game", "patch", "playoffs", "split", "position", "side", "teamname", "result",
+              "golddiffat15"]
 
 GAMES_SCHEMA: dict[str, str] = {
     "game_id": "str",
@@ -45,6 +47,7 @@ GAMES_SCHEMA: dict[str, str] = {
     "red_region": "str",
     "winner": "str",                # blue | red
     "blue_win": "int8",
+    "gd15": "float64",              # blue minus red gold at 15:00; NaN when OE has no timeline data
     "cross_region": "bool",         # both regions known and different
     "scored": "bool",               # main-event game of a backtest-scored international event
     "data_source": "str",
@@ -90,6 +93,7 @@ def _to_wide(rows: pd.DataFrame) -> pd.DataFrame:
     g["blue_team"] = blue["teamname"]
     g["red_team"] = red.loc[g.index, "teamname"]
     g["blue_win"] = blue["result"].astype("int8")
+    g["gd15"] = pd.to_numeric(blue["golddiffat15"], errors="coerce") if "golddiffat15" in blue else np.nan
     g = g.reset_index().rename(columns={"gameid": "game_id"})
     g = g.sort_values(["date_utc", "game_id"], kind="stable").reset_index(drop=True)
     return _drop_double_records(g)

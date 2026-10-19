@@ -37,6 +37,18 @@ def bt_params_from_config(model_cfg: dict) -> BTParams:
     )
 
 
+def shadow_params_from_config(model_cfg: dict, name: str = "margin_bt") -> tuple[BTParams, float] | None:
+    """(params, temperature) of a fitted shadow model, or None if it has not been fitted yet."""
+    fitted = model_cfg.get("shadow_models", {}).get(name, {}).get("fitted")
+    if not fitted:
+        return None
+    from dataclasses import replace
+
+    params = replace(bt_params_from_config(model_cfg), margin_weight=fitted["margin_weight"],
+                     margin_scale=fitted["margin_scale"], margin_sigma=fitted["margin_sigma"])
+    return params, fitted["temperature"]
+
+
 class Predictor:
     def __init__(self, games: pd.DataFrame, as_of: pd.Timestamp, params: BTParams, temperature: float,
                  posterior: bool = False):

@@ -13,7 +13,9 @@ def team_strength(team: str) -> float:
     return TRUE_REGION[team[0]] + TRUE_TEAM[team]
 
 
-def make_games(seed: int = 0, n_days: int = 400, games_per_day: int = 6, cross_share: float = 0.3) -> pd.DataFrame:
+def make_games(seed: int = 0, n_days: int = 400, games_per_day: int = 6, cross_share: float = 0.3,
+               gold_per_logit: float | None = None, gold_noise: float = 2500.0) -> pd.DataFrame:
+    """With `gold_per_logit`, each game also gets gd15 = gold_per_logit * true logit + noise."""
     rng = np.random.default_rng(seed)
     teams = list(TRUE_TEAM)
     rows = []
@@ -29,7 +31,9 @@ def make_games(seed: int = 0, n_days: int = 400, games_per_day: int = 6, cross_s
             z = team_strength(blue) - team_strength(red) + TRUE_SIDE
             win = int(rng.random() < 1 / (1 + np.exp(-z)))
             t = start + pd.Timedelta(days=d, hours=10 + k)
+            extra = {} if gold_per_logit is None else {"gd15": gold_per_logit * z + rng.normal(0, gold_noise)}
             rows.append({
+                **extra,
                 "game_id": f"g{d}_{k}", "date_utc": t,
                 "blue_team": blue, "red_team": red,
                 "blue_team_season_id": f"{blue.lower()}_{t.year}",

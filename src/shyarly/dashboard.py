@@ -58,20 +58,21 @@ def _match_id(r) -> str:
 
 def predictions_vs_results(log_path: Path = paths.PREDICTIONS_LOG,
                            results_path: Path = paths.MANUAL_RESULTS) -> pd.DataFrame:
-    """First logged prediction per (match, mode) next to the entered result, if any."""
+    """First logged prediction per (match, model, mode) next to the entered result, if any."""
     log = _read_csv(log_path, dtype={"round": str})
     if log.empty:
         return log
-    first = log.drop_duplicates(["match_id", "mode"], keep="first")
+    log = log.assign(model=log["model"].fillna("bt")) if "model" in log else log.assign(model="bt")
+    first = log.drop_duplicates(["match_id", "model", "mode"], keep="first")
     res = _read_csv(results_path, dtype={"round": str})
     if res.empty:
         first = first.assign(winner=pd.NA, score=pd.NA)
     else:
         res = res.assign(match_id=res.apply(_match_id, axis=1))[["match_id", "winner", "score"]]
         first = first.merge(res, on="match_id", how="left")
-    keep = ["match_date_utc", "stage", "round", "team_a", "team_b", "best_of", "mode",
+    keep = ["match_date_utc", "stage", "round", "team_a", "team_b", "best_of", "model", "mode",
             "p_series_a", "p_game_a", "winner", "score", "logged_at_utc"]
-    return first[keep].sort_values(["match_date_utc", "mode"], ignore_index=True)
+    return first[keep].sort_values(["match_date_utc", "model", "mode"], ignore_index=True)
 
 
 def live_scores(path: Path = paths.LIVE_SCORES_MD) -> str | None:

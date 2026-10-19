@@ -17,6 +17,7 @@ backtest:
     - "M2 (38a6cba): one shared half-life. BT 0.6251 vs region prior 0.6237 (holdout live log loss)."
     - "e2fbbcb: separate cross-region half-life. BT 0.6189 vs region prior 0.6237."
     - "Widened grids (lambda_team to 64, half-lives 30–1460 days, 4-year lookback), discarded: BT 0.6238 vs region prior 0.6252. The e2fbbcb setup was kept after seeing this."
+    - "2026-10-19, pre-registered shadow run (shadow_models.margin_bt): margin_bt 0.6184 vs BT 0.6199 (holdout live). Report only; not used for any decision."
 
 production:
   # The model used by `shyarly predict` and `shyarly simulate`. Copied from reports/backtest.md
@@ -76,6 +77,13 @@ shadow_models:
       - "Δ game log loss vs production < 0 on Worlds 2026 Swiss games (live mode, predictions_log.csv)"
     report_only: "holdout events (this run is recorded as holdout look 4)"
     decision_date: "2026-11-01, after Swiss Round 5"
+    # Output of `shyarly shadow` (reports/shadow_margin.md), 2026-10-19. Used to log live predictions.
+    fitted:
+      margin_weight: 0.5
+      margin_scale: 2451.1          # gold per logit unit, frozen (games before 2022-09-29)
+      margin_sigma: 1.1707
+      temperature: 0.7049           # < 1: raw margin_bt is under-confident (c is fitted on shrunk logits)
+      tune_pre_event_delta: -0.0024 # 95% CI [-0.0194, +0.0153]; decision input 1 passes (Δ < 0)
 
 bt:
   lookback_days: 730             # older games carry < 6% weight even at the longest half-life

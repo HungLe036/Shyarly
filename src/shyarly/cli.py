@@ -54,6 +54,24 @@ def backtest() -> None:
     typer.echo(f"Wrote {paths.BACKTEST_REPORT.relative_to(paths.ROOT)} and {paths.BACKTEST_PREDICTIONS.relative_to(paths.ROOT)}")
 
 
+@app.command()
+def shadow() -> None:
+    """Run the pre-registered shadow model margin_bt (config/model.yaml) and write reports/shadow_margin.md."""
+    import pandas as pd
+
+    from shyarly.eval.shadow import REPORT, run_shadow, shadow_markdown
+
+    cfg = load_model_config()
+    res = run_shadow(pd.read_parquet(paths.GAMES_PARQUET), cfg)
+    md = shadow_markdown(res, cfg)
+    REPORT.write_text(md, encoding="utf-8")
+    typer.echo(md)
+    typer.echo(f"Fitted (copy into shadow_models.margin_bt.fitted): margin_weight={res.selected_weight}, "
+               f"margin_scale={res.scale['c_gold_per_logit']}, margin_sigma={res.scale['sigma_logit']}, "
+               f"temperature={res.temperature:.4f}")
+    typer.echo(f"Wrote {REPORT.relative_to(paths.ROOT)}")
+
+
 def _as_of(value: str | None):
     import pandas as pd
 
@@ -181,7 +199,7 @@ def update(
     from shyarly.data.manual import swiss_fixed
     from shyarly.eval.live import (append_log, due_predictions, live_markdown, provenance, score_log,
                                    stage_starts)
-    from shyarly.models.predictor import Predictor, worlds_team_ref
+    from shyarly.models.predictor import Predictor, shadow_params_from_config, worlds_team_ref
 
     if fetch:
         _ingest(refresh=True)
@@ -191,10 +209,17 @@ def update(
     codes = [t.code for t in worlds.teams]
     fx = swiss_fixed(results, worlds, codes)
     now = pd.Timestamp.now(tz="UTC")
-    new = due_predictions(
-        results, fx.best_of, lambda cutoff: Predictor.from_config(g, cutoff, cfg),
-        lambda code: worlds_team_ref(code, worlds, leagues, now.year), stage_starts(worlds), now, provenance())
-    added = append_log(paths.PREDICTIONS_LOG, new)
+    # Production BT drives the odds; fitted shadow models are only logged (config shadow_models).
+    models = {"bt": lambda cutoff: Predictor.from_config(g, cutoff, cfg)}
+    shadow = shadow_params_from_config(cfg)
+    if shadow:
+        models["margin_bt"] = lambda cutoff, s=shadow: Predictor(g, cutoff, s[0], s[1])
+    ref = lambda code: worlds_team_ref(code, worlds, leagues, now.year)  # noqa: E731
+    prov = provenance()
+    added = 0
+    for name, predictor_at in models.items():
+        new = due_predictions(results, fx.best_of, predictor_at, ref, stage_starts(worlds), now, prov, model=name)
+        added += append_log(paths.PREDICTIONS_LOG, new)
     log = pd.read_csv(paths.PREDICTIONS_LOG, dtype={"round": str})
     scores = score_log(log, results)
     paths.LIVE_SCORES_MD.write_text(live_markdown(scores, log, results), encoding="utf-8")
@@ -202,7 +227,7 @@ def update(
     if scores.empty:
         typer.echo("Live scoring: no played matches with a logged prediction yet.")
     for s in scores.to_dict("records"):
-        typer.echo(f"Live scoring [{s['mode']}]: {s['n_series']} series, log loss {s['series_log_loss']:.4f}; "
+        typer.echo(f"Live scoring [{s['model']} {s['mode']}]: {s['n_series']} series, log loss {s['series_log_loss']:.4f}; "
                    f"{s['n_games']} games, game log loss {s['game_log_loss']:.4f}")
     typer.echo(f"Wrote {paths.LIVE_SCORES_MD.relative_to(paths.ROOT)}")
 
