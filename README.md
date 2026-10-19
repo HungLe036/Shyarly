@@ -21,9 +21,9 @@ Knockout Stage through the final (Brooklyn, Nov 14).
 | M3 — temperature calibration, series probabilities, gates | done | `2c434f7`, `4678d8d` |
 | M4 — Swiss Monte Carlo, `predict` and `simulate` CLI | done | `d33deb3` |
 | M5 — daily update from live results (`shyarly update`), prediction log | done | this commit |
-| M6 — knockout sim, champion % | done (Streamlit page not started) | this commit |
+| M6 — knockout sim, champion %, Streamlit page | done | `01f19f4`, this commit |
 
-150 tests pass (`uv run pytest`), plus a slow 50k-run seed-stability test (`uv run pytest -m slow`).
+153 tests pass (`uv run pytest`), plus a slow 50k-run seed-stability test (`uv run pytest -m slow`).
 
 **Field and Round 1 draw are final (2026-10-19):** Karmine Corp won the Play-In (3-0 over MVK) and
 the official Round 1 pairings are in `config/worlds2026.yaml`. The model data runs through the
@@ -195,6 +195,9 @@ All of these are recorded in the configs and in [reports/backtest.md](reports/ba
    - logs predictions for drawn matches in `reports/predictions_log.csv`, and scores the played
      ones in `reports/live_scores.md`.
 3. **Commit** the results file and the reports.
+4. **Look** (optional): `uv run --group app streamlit run src/shyarly/app.py` opens a
+   read-only page with title odds, Swiss record distributions, odds over time per team and the
+   prediction log next to the results. It only reads `reports/` and `data/manual/`.
 
 **Prediction log (the fresh holdout).** Every match gets two predictions: *pre-event* (model
 trained on games before the stage started: Oct 23 for Swiss, Nov 3 for knockouts) and *live*
@@ -213,14 +216,14 @@ draw, so title odds carry the same uncertainty as qualify odds.
 ```
 config/            worlds2026.yaml (cited tournament facts), leagues.yaml, model.yaml, sources.yaml
 data/              raw/ interim/ processed/ (gitignored) and manual/ (tracked: worlds2026_results.csv)
-src/shyarly/       cli.py, paths.py, config.py
+src/shyarly/       cli.py, paths.py, config.py, app.py (Streamlit page), dashboard.py (its loaders)
   data/            fetch.py (cache + manifest), leaguepedia.py, games.py (games/series tables),
                    manual.py (results file: loading, rule checks, replay into simulator inputs)
   models/          bt.py, elo.py, baselines.py, calibration.py, series.py, predictor.py
   eval/            metrics.py, backtest.py, live.py (prediction log + live scoring)
   sim/             swiss.py (Swiss simulator), knockout.py (bracket), run.py (tournament run + reports)
 tests/             schema, leakage, models, metrics, calibration, series, Swiss invariants, predictor,
-                   posterior, results file, knockout, prediction log
+                   posterior, results file, knockout, prediction log, page loaders
 reports/           backtest.md, swiss_odds.*, tournament_odds.*, daily/, predictions_log.csv, live_scores.md
 ```
 
