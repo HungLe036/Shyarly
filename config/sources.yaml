@@ -39,6 +39,14 @@ oddspapi:
   # (several at once returned "Invalid bookmaker/outcome combination").
   rate_limit_wait_s: 15
   rate_limit_retries: 4
+  # Tournaments followed during Worlds (GET /v4/tournaments?sportId=18): 2549 World Championship,
+  # 2527 Mid-Season Invitational, 45617 First Stand.
+  worlds_tournament_id: 2549
+  # OddsPapi name -> Oracle's Elixir name, where case/punctuation-insensitive matching fails.
+  # Each was checked by the series join (same opponent and start time) on 2026-10-19.
+  team_aliases:
+    "Furia Esports": "FURIA"
+    "Lyon Gaming": "LYON"
 
 rules:
   # source: https://competitiveops.riotgames.com/en-US/library -> "2026 World Championship Event Specific Ruleset" (published 2026-09-01)

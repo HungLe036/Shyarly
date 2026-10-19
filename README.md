@@ -50,6 +50,8 @@ shyarly predict match "<Team A>" "<Team B>" --bo 3 [--as-of DATE] # one game and
 shyarly simulate --stage swiss|tournament [--runs N] [--as-of DATE] [--seed N] [--posterior|--point] [--no-results]
 shyarly update [--no-fetch]                                       # daily during Worlds (see below)
 shyarly shadow                                                    # pre-registered shadow model run -> reports/shadow_margin.md
+shyarly odds --tournament 2549 [--refresh]                        # closing betting odds (OddsPapi) -> data/manual/market_odds.csv
+shyarly benchmark                                                 # model vs market -> reports/market_benchmark.md
 ```
 
 You can name a team by its Worlds code (`GEN`), its Worlds name, or its Oracle's Elixir name.
@@ -188,6 +190,15 @@ All of these are recorded in the configs and in [reports/backtest.md](reports/ba
    *and* on Worlds 2026 Swiss games. Result so far ([reports/shadow_margin.md](reports/shadow_margin.md)):
    tune Δ −0.0024 (95% CI [−0.019, +0.015]), so condition 1 passes, barely; holdout (report only,
    look 4) Δ −0.0015. Its predictions are logged next to production's from Oct 23; decision Nov 1.
+9. **Betting market as a benchmark, not an input.** Closing Pinnacle odds come from OddsPapi
+   (free plan, 250 billable calls a month; the key lives in a gitignored `.env`). Its odds
+   history only starts around June 2026: Worlds 2025 and MSI 2025 return none, so the market
+   cannot be backtested or blended in. It is compared with the model on what exists (MSI 2026,
+   the 2026 Play-In, and Worlds 2026 as it is played): [reports/market_benchmark.md](reports/market_benchmark.md).
+   First read, 18 series: model 0.745 vs market 0.712 series log loss (Δ +0.033, 95% CI
+   [−0.084, +0.148]), so no detectable difference yet. Raw responses stay local in
+   `data/raw/odds/`; the compact `data/manual/market_odds.csv` is committed. OddsPapi's terms
+   may restrict redistribution, so keep that file out of any public copy of the repo.
 
 ## During Worlds: the daily routine
 
@@ -207,7 +218,9 @@ All of these are recorded in the configs and in [reports/backtest.md](reports/ba
      and writes `reports/swiss_odds.*`, `reports/tournament_odds.*` and a dated snapshot in
      `reports/daily/`;
    - logs predictions for drawn matches in `reports/predictions_log.csv`, and scores the played
-     ones in `reports/live_scores.md`.
+     ones in `reports/live_scores.md`;
+   - pulls Pinnacle's closing odds for finished Worlds matches (1 OddsPapi call; `--no-odds` to
+     skip) and refreshes the model-vs-market comparison in `reports/market_benchmark.md`.
 3. **Commit** the results file and the reports.
 4. **Look** (optional): `uv run --group app streamlit run src/shyarly/app.py` opens a
    read-only page with title odds, Swiss record distributions, odds over time per team and the

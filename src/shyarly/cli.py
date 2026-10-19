@@ -77,6 +77,39 @@ def odds(
                f"(budget {cfg['monthly_budget']}) -> {MARKET_ODDS.relative_to(paths.ROOT)}")
 
 
+def _benchmark() -> str:
+    """Model vs closing market odds -> reports/market_benchmark.md. Returns a one-line summary."""
+    import pandas as pd
+
+    from shyarly.config import _read_yaml
+    from shyarly.data.market import MARKET_ODDS
+    from shyarly.eval.benchmark import REPORT_NAME, add_model, benchmark_markdown, join_market, name_map, score_benchmark
+    from shyarly.models.predictor import bt_params_from_config
+
+    if not MARKET_ODDS.exists():
+        return "Market benchmark: no market odds yet (run `shyarly odds`)."
+    cfg, src = load_model_config(), _read_yaml(paths.SOURCES_CONFIG)["oddspapi"]
+    aliases = src.get("team_aliases") or {}
+    market = pd.read_csv(MARKET_ODDS)
+    series, games = pd.read_parquet(paths.SERIES_PARQUET), pd.read_parquet(paths.GAMES_PARQUET)
+    joined, unmatched = join_market(market, series, games, aliases)
+    _, missing = name_map(sorted(set(market["team_1"]) | set(market["team_2"])),
+                          set(series["team_a"]) | set(series["team_b"]), aliases)
+    if len(joined):
+        joined = add_model(joined, games, bt_params_from_config(cfg), cfg["production"]["temperature"])
+    scores = score_benchmark(joined, cfg["backtest"]["bootstrap_resamples"], cfg["seed"]) if len(joined) else pd.DataFrame()
+    (paths.REPORTS_DIR / REPORT_NAME).write_text(benchmark_markdown(joined, scores, unmatched, missing), encoding="utf-8")
+    parts = [f"{s['target']}: n={s['n']}, model {s['model_log_loss']:.3f} vs market {s['market_log_loss']:.3f} "
+             f"(Δ {s['delta']:+.3f} {s['ci95']})" for s in scores.to_dict("records")]
+    return "Market benchmark: " + ("; ".join(parts) or "no matched matches yet") + f" -> reports/{REPORT_NAME}"
+
+
+@app.command()
+def benchmark() -> None:
+    """Compare the model with closing betting odds (data/manual/market_odds.csv)."""
+    typer.echo(_benchmark())
+
+
 @app.command()
 def shadow() -> None:
     """Run the pre-registered shadow model margin_bt (config/model.yaml) and write reports/shadow_margin.md."""
@@ -212,6 +245,8 @@ def simulate(
 @app.command()
 def update(
     fetch: bool = typer.Option(True, "--fetch/--no-fetch", help="Re-download this year's Oracle's Elixir data first"),
+    odds: bool = typer.Option(True, "--odds/--no-odds",
+                              help="Refresh Worlds closing odds from OddsPapi (1 billable call) and the market benchmark"),
     runs: int = typer.Option(None, "--runs", help="Default: simulation.runs in config/model.yaml"),
     seed: int = typer.Option(None, "--seed", help="Default: seed in config/model.yaml"),
 ) -> None:
@@ -253,6 +288,24 @@ def update(
         typer.echo(f"Live scoring [{s['model']} {s['mode']}]: {s['n_series']} series, log loss {s['series_log_loss']:.4f}; "
                    f"{s['n_games']} games, game log loss {s['game_log_loss']:.4f}")
     typer.echo(f"Wrote {paths.LIVE_SCORES_MD.relative_to(paths.ROOT)}")
+
+    if odds:
+        from shyarly.config import _read_yaml
+        from shyarly.data.market import MARKET_ODDS, append_market_rows, tournament_rows
+        from shyarly.data.oddspapi import OddsPapi, OddsPapiError
+
+        src = _read_yaml(paths.SOURCES_CONFIG)["oddspapi"]
+        try:
+            client = OddsPapi(cfg=src)
+            markets = [src["match_winner_market"], src["first_map_market"]]
+            for book in src["bookmakers"]:
+                rows, _ = tournament_rows(client, src["worlds_tournament_id"], book, markets, refresh_fixtures=True)
+                added = append_market_rows(MARKET_ODDS, rows)
+                typer.echo(f"Market odds: {added} new closing quotes ({book}); OddsPapi billable calls this month: "
+                           f"{client.billable_this_month()} of {src['monthly_budget']}")
+        except OddsPapiError as e:          # no key, budget used up, or the API is down: keep the update
+            typer.echo(f"Market odds skipped: {e}", err=True)
+        typer.echo(_benchmark())
 
 
 if __name__ == "__main__":
