@@ -1,14 +1,17 @@
 # Shyarly
 
 Calibrated win probabilities and a Monte Carlo simulation of the **League of Legends World
-Championship 2026** Swiss Stage (Allen, TX, Oct 23–31; 16 teams, 8 advance).
+Championship 2026**: the Swiss Stage (Allen, TX, Oct 23–31; 16 teams, 8 advance) and the
+Knockout Stage through the final (Brooklyn, Nov 14).
 
 - Spec: [docs/02-refined-plan.md](docs/02-refined-plan.md). Background: [docs/01-brainstorm.md](docs/01-brainstorm.md).
 - Tournament facts (teams, seeds, format rules), each with a cited source: [config/worlds2026.yaml](config/worlds2026.yaml).
 - Backtest and promotion gates: [reports/backtest.md](reports/backtest.md).
 - Current Swiss odds: [reports/swiss_odds.md](reports/swiss_odds.md) ([CSV](reports/swiss_odds.csv)).
+- Current title odds: [reports/tournament_odds.md](reports/tournament_odds.md) ([CSV](reports/tournament_odds.csv)).
+- Live scoring of logged predictions: [reports/live_scores.md](reports/live_scores.md).
 
-## Status (2026-10-18)
+## Status (2026-10-19)
 
 | Milestone | State | Commit |
 |---|---|---|
@@ -17,10 +20,10 @@ Championship 2026** Swiss Stage (Allen, TX, Oct 23–31; 16 teams, 8 advance).
 | M2 — baselines (50/50, region prior, Elo) and Bradley-Terry, backtest | done | `38a6cba`, `e2fbbcb` |
 | M3 — temperature calibration, series probabilities, gates | done | `2c434f7`, `4678d8d` |
 | M4 — Swiss Monte Carlo, `predict` and `simulate` CLI | done | `d33deb3` |
-| M5 — daily update from live results (`shyarly update`) | not started | |
-| M6 — knockout sim, champion %, Streamlit page | not started | |
+| M5 — daily update from live results (`shyarly update`), prediction log | done | this commit |
+| M6 — knockout sim, champion % | done (Streamlit page not started) | this commit |
 
-92 tests pass (`uv run pytest`), plus a slow 50k-run seed-stability test (`uv run pytest -m slow`).
+150 tests pass (`uv run pytest`), plus a slow 50k-run seed-stability test (`uv run pytest -m slow`).
 
 **Field and Round 1 draw are final (2026-10-19):** Karmine Corp won the Play-In (3-0 over MVK) and
 the official Round 1 pairings are in `config/worlds2026.yaml`. The model data runs through the
@@ -43,7 +46,8 @@ uv run shyarly simulate --stage swiss --runs 50000
 shyarly ingest [--refresh]                                        # fetch/cache data, build data/processed/*.parquet
 shyarly backtest                                                  # tune, score holdout, write reports/backtest.md
 shyarly predict match "<Team A>" "<Team B>" --bo 3 [--as-of DATE] # one game and best-of-N series
-shyarly simulate --stage swiss [--runs N] [--as-of DATE] [--seed N] [--posterior|--point]
+shyarly simulate --stage swiss|tournament [--runs N] [--as-of DATE] [--seed N] [--posterior|--point] [--no-results]
+shyarly update [--no-fetch]                                       # daily during Worlds (see below)
 ```
 
 You can name a team by its Worlds code (`GEN`), its Worlds name, or its Oracle's Elixir name.
@@ -145,6 +149,10 @@ Current qualify odds (50k runs with posterior draws, official Round 1 draw, game
 Gen.G 86%, T1 85%, HLE 84%, DK 83%, BLG 72%, AL 61%, IG 57%, TES 54%, G2 45%, KC 44%, MKOI 37%,
 TLAW 32%, LYON 29%, TSW 12%, LØS 10%, CFO 10%. The full table is in [reports/swiss_odds.md](reports/swiss_odds.md).
 
+Title odds (same runs, plus the knockout bracket): Gen.G 23%, HLE 20%, T1 18%, DK 18%, BLG 8%,
+AL 4%, IG 3%, TES 2.5%, G2 1.2%, KC 1.0%, everyone else under 1%. The four LCK teams together
+are about 79%. Full table: [reports/tournament_odds.md](reports/tournament_odds.md).
+
 ## Decisions and deviations from the spec
 
 All of these are recorded in the configs and in [reports/backtest.md](reports/backtest.md).
@@ -167,25 +175,53 @@ All of these are recorded in the configs and in [reports/backtest.md](reports/ba
 6. **What the model can't see:** rosters, drafts, patch 26.20 and Play-In form beyond the games in
    the data. Same-region teams come out close together because the model leans on region strength.
 
-## Before and during the Swiss Stage
+## During Worlds: the daily routine
 
-- **Play-In winner and Round 1 draw:** done (KC; pairings sourced from Leaguepedia, 2026-10-19).
-- **New games:** run `shyarly ingest --refresh` (OE updates once a day), then `shyarly simulate`.
-- **Live results:** the simulator can already take fixed pairings and fixed results for any round.
-  Feeding them from `data/manual/worlds2026_results.csv` via `shyarly update` is M5.
+1. **Enter results and new draws** in [data/manual/worlds2026_results.csv](data/manual/worlds2026_results.csv),
+   one row per match, with a source:
+   - after a match: fill `winner` and `score` (games won by `team_a`-`team_b`, e.g. `2-1`);
+   - after each round's draw: add the next round's pairings with `date_utc` and an empty winner;
+   - knockouts: rounds `QF1`–`QF4`, `SF1`, `SF2`, `F`. QF1/QF2 feed SF1 and QF3/QF4 feed SF2, so
+     enter the quarterfinals in bracket order.
+
+   The file is checked against the rules when it is read: Round 1 must match the official draw,
+   later pairs must share a record, a round needs the previous one finished, scores must fit
+   the best-of, and the two 3-0 vs 3-2 quarterfinals must be on opposite halves.
+2. **Run `uv run shyarly update`.** It:
+   - re-downloads this year's Oracle's Elixir data (`--no-fetch` to skip) and refits the model;
+   - re-simulates the whole tournament, conditional on every played match and published draw,
+     and writes `reports/swiss_odds.*`, `reports/tournament_odds.*` and a dated snapshot in
+     `reports/daily/`;
+   - logs predictions for drawn matches in `reports/predictions_log.csv`, and scores the played
+     ones in `reports/live_scores.md`.
+3. **Commit** the results file and the reports.
+
+**Prediction log (the fresh holdout).** Every match gets two predictions: *pre-event* (model
+trained on games before the stage started: Oct 23 for Swiss, Nov 3 for knockouts) and *live*
+(games before the match's UTC day). A prediction is logged only after its cutoff has passed,
+and the log is append-only: the first row per match and mode is the one scored, and each row
+records the commit and a config hash. Run `update` early on each match day (before 17:00 UTC)
+so the live predictions are logged before the games start.
+
+**Odds model for the bracket:** each 3-0 team meets a random 3-2 team, those two matches sit on
+opposite halves, and the other four teams are paired at random (RULESET 4.3.4); every
+knockout match is Bo5. Each run plays the Swiss Stage and the knockouts with the same strength
+draw, so title odds carry the same uncertainty as qualify odds.
 
 ## Repo layout
 
 ```
 config/            worlds2026.yaml (cited tournament facts), leagues.yaml, model.yaml, sources.yaml
-data/              raw/ interim/ processed/ (gitignored) and manual/ (tracked)
+data/              raw/ interim/ processed/ (gitignored) and manual/ (tracked: worlds2026_results.csv)
 src/shyarly/       cli.py, paths.py, config.py
-  data/            fetch.py (cache + manifest), leaguepedia.py, games.py (games/series tables)
+  data/            fetch.py (cache + manifest), leaguepedia.py, games.py (games/series tables),
+                   manual.py (results file: loading, rule checks, replay into simulator inputs)
   models/          bt.py, elo.py, baselines.py, calibration.py, series.py, predictor.py
-  eval/            metrics.py, backtest.py
-  sim/             swiss.py (simulator), run.py (Worlds field + odds report)
-tests/             schema, leakage, models, metrics, calibration, series, Swiss invariants, predictor
-reports/           backtest.md, swiss_odds.md/.csv
+  eval/            metrics.py, backtest.py, live.py (prediction log + live scoring)
+  sim/             swiss.py (Swiss simulator), knockout.py (bracket), run.py (tournament run + reports)
+tests/             schema, leakage, models, metrics, calibration, series, Swiss invariants, predictor,
+                   posterior, results file, knockout, prediction log
+reports/           backtest.md, swiss_odds.*, tournament_odds.*, daily/, predictions_log.csv, live_scores.md
 ```
 
 ## Data and licensing

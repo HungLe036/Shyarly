@@ -25,6 +25,10 @@ def _main(verbose: bool = typer.Option(False, "--verbose", "-v")) -> None:
 @app.command()
 def ingest(refresh: bool = typer.Option(False, help="Re-download years listed in refresh_years.")) -> None:
     """Fetch and cache raw data, then build data/processed/games.parquet and series.parquet."""
+    _ingest(refresh)
+
+
+def _ingest(refresh: bool) -> None:
     sources = load_sources()
     manifest = fetch.fetch_oracles_elixir(sources, refresh=refresh)
     fetch.fetch_rules(sources)
@@ -90,39 +94,117 @@ def predict_match(
         typer.echo(f"  Bo{bo} series: {pr.p_series(a, b, bo):6.1%}")
 
 
-@app.command()
-def simulate(
-    stage: str = typer.Option("swiss", "--stage", help="Only 'swiss' for now"),
-    runs: int = typer.Option(None, "--runs", help="Default: simulation.runs in config/model.yaml"),
-    as_of: str = typer.Option(None, "--as-of", help="Use only games before this UTC date (default: today)"),
-    seed: int = typer.Option(None, "--seed", help="Default: seed in config/model.yaml"),
-    posterior: bool = typer.Option(None, "--posterior/--point",
-                                   help="Draw strengths from the posterior each run (default: simulation.posterior)"),
-) -> None:
-    """Monte Carlo of the Swiss Stage: qualify % and 3-0…0-3 per team."""
+def _results(as_of: str | None, worlds, cutoff, use: bool = True):
+    """Rows from data/manual/worlds2026_results.csv. With an explicit --as-of, only matches
+    played before that UTC day count as results (later ones are dropped)."""
+    from shyarly.data.manual import ResultsError, load_results
+
+    if not use:
+        return []
+    try:
+        rows = load_results(paths.MANUAL_RESULTS, worlds)
+    except ResultsError as e:
+        raise typer.BadParameter(f"{paths.MANUAL_RESULTS.relative_to(paths.ROOT)}: {e}") from e
+    return [r for r in rows if r.date_utc < cutoff] if as_of else rows
+
+
+def _run_simulation(stage: str, runs: int | None, as_of: str | None, seed: int | None, posterior: bool | None,
+                    use_results: bool, snapshot: bool = False):
     import pandas as pd
 
     from shyarly.config import load_worlds
+    from shyarly.data.manual import ResultsError
     from shyarly.models.predictor import Predictor
-    from shyarly.sim.run import odds_markdown, simulate_worlds_swiss
+    from shyarly.sim.run import odds_markdown, simulate_worlds, tournament_markdown
 
-    if stage != "swiss":
-        raise typer.BadParameter("only --stage swiss is implemented (knockout is v2)")
-    cfg = load_model_config()
+    if stage not in ("swiss", "tournament"):
+        raise typer.BadParameter("--stage must be swiss or tournament")
+    cfg, worlds = load_model_config(), load_worlds()
     g = pd.read_parquet(paths.GAMES_PARQUET)
     cutoff = _as_of(as_of)
+    results = _results(as_of, worlds, cutoff, use_results)
     use_posterior = cfg["simulation"].get("posterior", False) if posterior is None else posterior
     pr = Predictor.from_config(g, cutoff, cfg, posterior=use_posterior)
-    odds = simulate_worlds_swiss(load_worlds(), load_leagues(), pr,
-                                 runs=runs or cfg["simulation"]["runs"], seed=cfg["seed"] if seed is None else seed,
-                                 posterior=use_posterior)
+    try:
+        odds = simulate_worlds(worlds, load_leagues(), pr, runs=runs or cfg["simulation"]["runs"],
+                               seed=cfg["seed"] if seed is None else seed, posterior=use_posterior,
+                               results=results, knockout=stage == "tournament")
+    except ResultsError as e:
+        raise typer.BadParameter(f"{paths.MANUAL_RESULTS.relative_to(paths.ROOT)}: {e}") from e
     last_game = g.loc[g["date_utc"] < cutoff, "date_utc"].max()
-    md = odds_markdown(odds, cutoff, pr.temperature, last_game)
     paths.REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+    swiss_cols = [c for c in odds.table.columns if c not in ("semis", "final", "champion")]
+    md = odds_markdown(odds, cutoff, pr.temperature, last_game)
     paths.SWISS_ODDS_MD.write_text(md, encoding="utf-8")
-    odds.table.to_csv(paths.SWISS_ODDS_CSV, index=False)
+    odds.table.sort_values(["qualify", "3-0"], ascending=False)[swiss_cols].to_csv(paths.SWISS_ODDS_CSV, index=False)
+    written = [paths.SWISS_ODDS_MD, paths.SWISS_ODDS_CSV]
+    if odds.knockout:
+        md = tournament_markdown(odds, cutoff, pr.temperature, last_game)
+        paths.TOURNAMENT_ODDS_MD.write_text(md, encoding="utf-8")
+        odds.table.to_csv(paths.TOURNAMENT_ODDS_CSV, index=False)
+        written += [paths.TOURNAMENT_ODDS_MD, paths.TOURNAMENT_ODDS_CSV]
+    if snapshot:
+        paths.DAILY_DIR.mkdir(parents=True, exist_ok=True)
+        snap = paths.DAILY_DIR / f"{cutoff:%Y-%m-%d}_odds.csv"
+        odds.table.assign(as_of=f"{cutoff:%Y-%m-%d}", runs=odds.runs, seed=odds.seed).to_csv(snap, index=False)
+        written.append(snap)
     typer.echo(md)
-    typer.echo(f"Wrote {paths.SWISS_ODDS_MD.relative_to(paths.ROOT)} and {paths.SWISS_ODDS_CSV.relative_to(paths.ROOT)}")
+    typer.echo("Wrote " + ", ".join(str(p.relative_to(paths.ROOT)) for p in written))
+    return cfg, worlds, g, results
+
+
+@app.command()
+def simulate(
+    stage: str = typer.Option("swiss", "--stage", help="swiss, or tournament (Swiss + knockout, champion %)"),
+    runs: int = typer.Option(None, "--runs", help="Default: simulation.runs in config/model.yaml"),
+    as_of: str = typer.Option(None, "--as-of", help="Use only games (and results) before this UTC date (default: today)"),
+    seed: int = typer.Option(None, "--seed", help="Default: seed in config/model.yaml"),
+    posterior: bool = typer.Option(None, "--posterior/--point",
+                                   help="Draw strengths from the posterior each run (default: simulation.posterior)"),
+    results: bool = typer.Option(True, "--results/--no-results",
+                                 help="Condition on data/manual/worlds2026_results.csv"),
+) -> None:
+    """Monte Carlo of the Swiss Stage (qualify %, 3-0…0-3), or the whole tournament (champion %)."""
+    _run_simulation(stage, runs, as_of, seed, posterior, results)
+
+
+@app.command()
+def update(
+    fetch: bool = typer.Option(True, "--fetch/--no-fetch", help="Re-download this year's Oracle's Elixir data first"),
+    runs: int = typer.Option(None, "--runs", help="Default: simulation.runs in config/model.yaml"),
+    seed: int = typer.Option(None, "--seed", help="Default: seed in config/model.yaml"),
+) -> None:
+    """Daily during Worlds: refresh data, re-simulate the tournament with known results,
+    log predictions for drawn matches and score the played ones."""
+    import pandas as pd
+
+    from shyarly.data.manual import swiss_fixed
+    from shyarly.eval.live import (append_log, due_predictions, live_markdown, provenance, score_log,
+                                   stage_starts)
+    from shyarly.models.predictor import Predictor, worlds_team_ref
+
+    if fetch:
+        _ingest(refresh=True)
+    cfg, worlds, g, results = _run_simulation("tournament", runs, None, seed, None, True, snapshot=True)
+
+    leagues = load_leagues()
+    codes = [t.code for t in worlds.teams]
+    fx = swiss_fixed(results, worlds, codes)
+    now = pd.Timestamp.now(tz="UTC")
+    new = due_predictions(
+        results, fx.best_of, lambda cutoff: Predictor.from_config(g, cutoff, cfg),
+        lambda code: worlds_team_ref(code, worlds, leagues, now.year), stage_starts(worlds), now, provenance())
+    added = append_log(paths.PREDICTIONS_LOG, new)
+    log = pd.read_csv(paths.PREDICTIONS_LOG, dtype={"round": str})
+    scores = score_log(log, results)
+    paths.LIVE_SCORES_MD.write_text(live_markdown(scores, log, results), encoding="utf-8")
+    typer.echo(f"Prediction log: {added} new rows ({len(log)} total) -> {paths.PREDICTIONS_LOG.relative_to(paths.ROOT)}")
+    if scores.empty:
+        typer.echo("Live scoring: no played matches with a logged prediction yet.")
+    for s in scores.to_dict("records"):
+        typer.echo(f"Live scoring [{s['mode']}]: {s['n_series']} series, log loss {s['series_log_loss']:.4f}; "
+                   f"{s['n_games']} games, game log loss {s['game_log_loss']:.4f}")
+    typer.echo(f"Wrote {paths.LIVE_SCORES_MD.relative_to(paths.ROOT)}")
 
 
 if __name__ == "__main__":

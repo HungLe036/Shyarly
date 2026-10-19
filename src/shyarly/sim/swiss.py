@@ -84,9 +84,11 @@ class SwissResult:
 class SwissSimulator:
     def __init__(self, teams: list[str], regions: list[str], tiers: list[int], p_game: np.ndarray,
                  rules: SwissRules, fixed_pairings: dict[int, list[tuple[int, int]]] | None = None,
-                 fixed_results: dict[tuple[int, int, int], int] | None = None):
+                 fixed_results: dict[tuple[int, int, int], int] | None = None,
+                 extra_best_of: tuple[int, ...] = ()):
         """p_game[i, j] = P(i beats j in one game). fixed_pairings: round -> [(a, b), ...].
-        fixed_results: (round, a, b) with a < b -> winner index (for rounds already played)."""
+        fixed_results: (round, a, b) with a < b -> winner index (for rounds already played).
+        extra_best_of: further series lengths to precompute (e.g. 5 for a knockout after the Swiss)."""
         n = len(teams)
         if n != 16 or p_game.shape != (n, n):
             raise ValueError("The Swiss Stage needs exactly 16 teams and a 16x16 probability matrix")
@@ -94,7 +96,8 @@ class SwissSimulator:
         self.fixed_pairings = fixed_pairings or {}
         self.fixed_results = fixed_results or {}
         # Nested lists: scalar lookups in the inner loop are much faster than numpy indexing.
-        self.series_p = {bo: series_win_prob(p_game, bo).tolist() for bo in set(rules.best_of_by_record.values())}
+        self.best_ofs = sorted(set(rules.best_of_by_record.values()) | set(extra_best_of))
+        self.series_p = {bo: series_win_prob(p_game, bo).tolist() for bo in self.best_ofs}
         self.round1_options = [self._valid_pool_pairings(a, b) for a, b in rules.pool_matchups]
         for opts, (a, b) in zip(self.round1_options, rules.pool_matchups):
             if not opts:
@@ -192,7 +195,7 @@ class SwissSimulator:
         if sampler is None:
             yield from (None for _ in range(runs))
             return
-        bos = sorted(set(self.rules.best_of_by_record.values()))
+        bos = self.best_ofs
         done = 0
         while done < runs:
             n = min(chunk, runs - done)
@@ -205,10 +208,12 @@ class SwissSimulator:
             done += n
 
     def simulate(self, runs: int, seed: int, sampler: Callable[[int], np.ndarray] | None = None,
-                 chunk: int = 2000) -> SwissResult:
+                 chunk: int = 2000,
+                 on_run: Callable[[RunLog, dict[int, list], random.Random], None] | None = None) -> SwissResult:
         """Play `runs` Swiss Stages. With `sampler(n)` -> (n, 16, 16) game-probability matrices,
         each run uses its own matrix (e.g. a posterior draw of team strengths), so strength
-        uncertainty is shared across all matches of that run."""
+        uncertainty is shared across all matches of that run. `on_run(log, series_p, rng)` is
+        called after each run with that run's series probabilities (e.g. to play a knockout)."""
         rng = random.Random(seed)
         qualify = np.zeros(16, dtype=np.int64)
         records = np.zeros((16, len(RECORDS)), dtype=np.int64)
@@ -216,6 +221,8 @@ class SwissSimulator:
         waived = 0
         for series_p in self._per_run_series(sampler, runs, chunk):
             log = self.run_once(rng, series_p)
+            if on_run is not None:
+                on_run(log, series_p or self.series_p, rng)
             waived += log.waived_rematches
             for i, (w, l) in enumerate(log.final):
                 records[i, idx[f"{w}-{l}"]] += 1
