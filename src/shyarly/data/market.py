@@ -18,6 +18,7 @@ from typing import Any
 import pandas as pd
 
 from shyarly import paths
+from shyarly.data.oddspapi import OddsPapiError
 
 MARKET_ODDS = paths.MANUAL_DIR / "market_odds.csv"
 MARKET_COLUMNS = ["fixture_id", "tournament", "start_time_utc", "team_1", "team_2", "bookmaker", "market",
@@ -40,7 +41,7 @@ def _snapshots(body: dict, bookmaker: str, market: str, outcome: str) -> list[di
     return snaps if isinstance(snaps, list) else []
 
 
-def closing_quote(body: dict, start: pd.Timestamp, bookmaker: str, market: str = "171") -> dict[str, Any] | None:
+def closing_quote(body: dict, start: pd.Timestamp, bookmaker: str, market: str = "181") -> dict[str, Any] | None:
     """Last pre-start price for both sides of a two-way market, or None if either side has none."""
     start = pd.Timestamp(start)
     start = start.tz_localize("UTC") if start.tzinfo is None else start.tz_convert("UTC")
@@ -55,6 +56,42 @@ def closing_quote(body: dict, start: pd.Timestamp, bookmaker: str, market: str =
         sides.append(max(pre))
     (t1, p1), (t2, p2) = sides
     return {"price_1": p1, "price_2": p2, "quote_time_utc": max(t1, t2).tz_convert("UTC").isoformat(), "n_quotes": n}
+
+
+def tournament_rows(client, tournament_id: int, bookmaker: str, markets: list[int],
+                    refresh_fixtures: bool = False) -> tuple[list[dict], int]:
+    """Closing quotes for every finished fixture of a tournament. The fixture list is one
+    billable call (cached); the odds histories are free. Returns (rows, fixtures without odds)."""
+    fixtures = client.get("fixtures", refresh=refresh_fixtures, tournamentId=tournament_id)
+    rows, missing = [], 0
+    for f in fixtures:
+        start = pd.Timestamp(f["startTime"])
+        if f.get("statusId") != 2:                    # only finished matches: their history is final
+            continue
+        try:
+            hist = client.get("historical-odds", fixtureId=f["fixtureId"], bookmakers=bookmaker)
+        except OddsPapiError as e:
+            if e.status != 404:                       # 404 = "No historical odds found" for this fixture
+                raise
+            missing += 1
+            continue
+        got = False
+        for m in markets:
+            q = closing_quote(hist, start, bookmaker, str(m))
+            if q is None:
+                continue
+            got = True
+            p1, p2, over = fair_probs(q["price_1"], q["price_2"])
+            rows.append({
+                "fixture_id": f["fixtureId"], "tournament": f.get("tournamentName"), "start_time_utc": start.isoformat(),
+                "team_1": f.get("participant1Name"), "team_2": f.get("participant2Name"), "bookmaker": bookmaker,
+                "market": m, "price_1": q["price_1"], "price_2": q["price_2"], "p1_fair": round(p1, 6),
+                "p2_fair": round(p2, 6), "overround": round(over, 6), "quote_time_utc": q["quote_time_utc"],
+                "n_quotes": q["n_quotes"], "source": "oddspapi /v4/historical-odds",
+                "fetched_at_utc": pd.Timestamp.now(tz="UTC").isoformat(),
+            })
+        missing += not got
+    return rows, missing
 
 
 def append_market_rows(path: Path, rows: list[dict]) -> int:

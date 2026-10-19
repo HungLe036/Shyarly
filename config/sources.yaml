@@ -30,9 +30,15 @@ oddspapi:
   base_url: "https://api.oddspapi.io/v4"
   sport_id: 18                      # ESport League of Legends
   bookmakers: [pinnacle]            # sharp benchmark; up to 3 per call
-  match_winner_market: 171          # outcomes 171 = participant 1, 172 = participant 2
+  # LoL market ids from GET /v4/markets?sportId=18 (2026-10-19; the CS2 guide's 171 does not apply):
+  match_winner_market: 181          # "Winner" (series); outcomes 181 = participant 1, 182 = participant 2
+  first_map_market: 1847            # "First Map Winner"; outcomes 1847 / 1848 -> comparable with p_game
   monthly_budget: 200               # hard stop for billable calls, leaving 50 spare
-  min_interval_s: 1.0
+  min_interval_s: 5.0               # 1s triggered 429s on /historical-odds; 5s did not (2026-10-19)
+  # /historical-odds is free but rate-limited (HTTP 429): wait and retry; one bookmaker per call
+  # (several at once returned "Invalid bookmaker/outcome combination").
+  rate_limit_wait_s: 15
+  rate_limit_retries: 4
 
 rules:
   # source: https://competitiveops.riotgames.com/en-US/library -> "2026 World Championship Event Specific Ruleset" (published 2026-09-01)

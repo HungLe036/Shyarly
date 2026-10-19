@@ -30,7 +30,9 @@ ENV_FILE = paths.ROOT / ".env"
 
 
 class OddsPapiError(RuntimeError):
-    pass
+    def __init__(self, message: str, status: int | None = None):
+        super().__init__(message)
+        self.status = status
 
 
 class BudgetExceeded(OddsPapiError):
@@ -101,8 +103,15 @@ class OddsPapi:
         if wait > 0:
             time.sleep(wait)
         key = self._key or load_key()
-        status, body = self.transport(f"{self.cfg['base_url']}/{endpoint}", {**params, "apiKey": key})
-        self._last = time.monotonic()
+        for attempt in range(self.cfg.get("rate_limit_retries", 0) + 1):
+            status, body = self.transport(f"{self.cfg['base_url']}/{endpoint}", {**params, "apiKey": key})
+            self._last = time.monotonic()
+            # A rate-limit 429 on a free endpoint is not counted; wait and retry. A 429 on a billable
+            # endpoint may mean the quota is gone, so it is not retried.
+            if status == 429 and not billable and attempt < self.cfg.get("rate_limit_retries", 0):
+                time.sleep(self.cfg.get("rate_limit_wait_s", 15) * (attempt + 1))
+                continue
+            break
         at = self.now().isoformat()
         if billable:
             self.ledger.parent.mkdir(parents=True, exist_ok=True)
@@ -110,7 +119,7 @@ class OddsPapi:
                 f.write(json.dumps({"at": at, "endpoint": endpoint, "params": params, "status": status}) + "\n")
         if status != 200:
             text = json.dumps(body)[:300] if not isinstance(body, str) else body[:300]
-            raise OddsPapiError(f"{endpoint} returned HTTP {status}: {text.replace(key, '***')}")
+            raise OddsPapiError(f"{endpoint} returned HTTP {status}: {text.replace(key, '***')}", status)
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps({"fetched_at": at, "endpoint": endpoint, "params": params, "body": body}),
                         encoding="utf-8")

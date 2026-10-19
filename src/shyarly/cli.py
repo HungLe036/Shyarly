@@ -55,6 +55,29 @@ def backtest() -> None:
 
 
 @app.command()
+def odds(
+    tournament: list[int] = typer.Option(..., "--tournament", help="OddsPapi tournament id(s), e.g. 2549 = Worlds"),
+    refresh: bool = typer.Option(False, "--refresh", help="Re-fetch the fixture list (1 billable call each)"),
+) -> None:
+    """Closing betting odds (Pinnacle) for finished matches -> data/manual/market_odds.csv."""
+    from shyarly.config import _read_yaml
+    from shyarly.data.market import MARKET_ODDS, append_market_rows, tournament_rows
+    from shyarly.data.oddspapi import OddsPapi
+
+    cfg = _read_yaml(paths.SOURCES_CONFIG)["oddspapi"]
+    client = OddsPapi(cfg=cfg)
+    markets = [cfg["match_winner_market"], cfg["first_map_market"]]
+    for tid in tournament:
+        for book in cfg["bookmakers"]:
+            rows, missing = tournament_rows(client, tid, book, markets, refresh_fixtures=refresh)
+            added = append_market_rows(MARKET_ODDS, rows)
+            typer.echo(f"tournament {tid} / {book}: {len(rows)} closing quotes ({added} new), "
+                       f"{missing} finished fixtures without {book} odds")
+    typer.echo(f"OddsPapi billable calls this month: {client.billable_this_month()} "
+               f"(budget {cfg['monthly_budget']}) -> {MARKET_ODDS.relative_to(paths.ROOT)}")
+
+
+@app.command()
 def shadow() -> None:
     """Run the pre-registered shadow model margin_bt (config/model.yaml) and write reports/shadow_margin.md."""
     import pandas as pd
