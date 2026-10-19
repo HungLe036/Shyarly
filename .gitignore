@@ -17,3 +17,6 @@ data/*
 Thumbs.db
 .vscode/
 .idea/
+
+# graphify knowledge graph (generated locally, goes stale)
+graphify-out/
