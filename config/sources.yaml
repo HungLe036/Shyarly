@@ -48,6 +48,37 @@ oddspapi:
     "Furia Esports": "FURIA"
     "Lyon Gaming": "LYON"
 
+oddsportal:
+  # User-supplied scrape of OddsPortal (2026-10-20), kept local in data/raw/oddsportal/ (gitignored;
+  # OddsPortal's terms restrict scraping and redistribution). Average closing odds over the listed
+  # bookmakers (median 6, mostly soft/crypto books, no Pinnacle). See src/shyarly/data/oddsportal.py.
+  file_sha256: "c6e9320ec40098eeae1a789c7752f95c51aa54d16ce5fb41672946b03b6cdac0"
+  international: ["World Championship", "Mid-Season Invitational", "Esports World Cup"]
+  # OddsPortal name -> Oracle's Elixir name. Derived 2026-10-20 from the data itself: for rows where
+  # one side maps, the OE series that day with the mapped opponent names the other side. Votes shown.
+  team_aliases:
+    "FURIA Esports": "FURIA"                     # 3/3
+    "FearX": "BNK FEARX"                         # 91/91 (2024-26)
+    "FlyQuest eSports": "FlyQuest"               # 89/93
+    "Hanwha Life": "Hanwha Life Esports"         # 176/176
+    "Heretics": "Team Heretics"                  # 40/44
+    "KRX": "Kiwoom DRX"                          # 146/147
+    "LOS": "LØS"                                 # 5/5
+    "Lyon Gaming": "LYON"                        # 33/33
+    "Misfits": "Misfits Gaming"                  # 14/17
+    "NRG Esports": "NRG"                         # 31/32
+    "Secret Whales": "Team Secret Whales"        # 2/2
+    "TT Gaming": "ThunderTalk Gaming"            # 132/133
+    "Talon": "PSG Talon"                         # 12/12
+    "Team SoloMid": "TSM"                        # 16/17
+    "Vitality": "Team Vitality"                  # 67/70
+    "Vivo Keyd": "Vivo Keyd Stars"               # 4/4
+  # OddsPortal shows today's name on old matches; tried after the current name, for that season only.
+  past_names:
+    "FearX": {2022: "Liiv SANDBOX", 2023: "Liiv SANDBOX"}                                   # 58/58
+    "Shifters": {2022: "Team BDS", 2023: "Team BDS", 2024: "Team BDS", 2025: "Team BDS"}    # 59/66
+    "Movistar KOI": {2022: "MAD Lions KOI", 2023: "MAD Lions KOI", 2024: "MAD Lions KOI"}   # 35/38
+
 rules:
   # source: https://competitiveops.riotgames.com/en-US/library -> "2026 World Championship Event Specific Ruleset" (published 2026-09-01)
   worlds2026_ruleset_pdf: "https://cdn.sanity.io/files/dsfx7636/news_live/faa5ce974e58615911fbee931c6123e2785a8b46.pdf"

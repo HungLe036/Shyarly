@@ -98,10 +98,48 @@ def _benchmark() -> str:
     if len(joined):
         joined = add_model(joined, games, bt_params_from_config(cfg), cfg["production"]["temperature"])
     scores = score_benchmark(joined, cfg["backtest"]["bootstrap_resamples"], cfg["seed"]) if len(joined) else pd.DataFrame()
-    (paths.REPORTS_DIR / REPORT_NAME).write_text(benchmark_markdown(joined, scores, unmatched, missing), encoding="utf-8")
+    md = benchmark_markdown(joined, scores, unmatched, missing)
     parts = [f"{s['target']}: n={s['n']}, model {s['model_log_loss']:.3f} vs market {s['market_log_loss']:.3f} "
              f"(Δ {s['delta']:+.3f} {s['ci95']})" for s in scores.to_dict("records")]
-    return "Market benchmark: " + ("; ".join(parts) or "no matched matches yet") + f" -> reports/{REPORT_NAME}"
+    summary = "Market benchmark (Pinnacle): " + ("; ".join(parts) or "no matched matches yet")
+
+    op_summary = _oddsportal_benchmark(cfg, series, games)
+    if op_summary:
+        md += "\n" + op_summary[0]
+        summary += "\nMarket benchmark (OddsPortal): " + op_summary[1]
+    (paths.REPORTS_DIR / REPORT_NAME).write_text(md, encoding="utf-8")
+    return summary + f"\n-> reports/{REPORT_NAME}"
+
+
+def _oddsportal_benchmark(cfg, series, games) -> tuple[str, str] | None:
+    """OddsPortal section, if the local scrape exists (data/raw/oddsportal/, not committed)."""
+    import pandas as pd
+
+    from shyarly.config import _read_yaml
+    from shyarly.data.oddsportal import ODDSPORTAL_FILE, load_oddsportal
+    from shyarly.eval.benchmark import add_model, join_quotes, make_resolver, oddsportal_markdown, score_benchmark
+    from shyarly.models.predictor import bt_params_from_config
+
+    if not ODDSPORTAL_FILE.exists():
+        return None
+    op = _read_yaml(paths.SOURCES_CONFIG)["oddsportal"]
+    quotes, dropped = load_oddsportal(ODDSPORTAL_FILE)
+    intl = quotes[quotes["tournament"].isin(op["international"])]
+    resolve = make_resolver(set(series["team_a"]) | set(series["team_b"]), op.get("team_aliases") or {},
+                            op.get("past_names") or {})
+    # OddsPortal gives a date, not a time: allow the series to start up to 1.5 days either side.
+    joined, unmatched = join_quotes(intl, series, games, resolve, window=pd.Timedelta(hours=36))
+    joined = add_model(joined, games, bt_params_from_config(cfg), cfg["production"]["temperature"])
+    split_of = {e: "tune" for e in cfg["backtest"]["tune_events"]} | {e: "holdout" for e in cfg["backtest"]["holdout_events"]}
+    joined["split"] = joined["event"].map(split_of).fillna("other")
+    args = (cfg["backtest"]["bootstrap_resamples"], cfg["seed"])
+    splits = {"all": score_benchmark(joined, *args)} | {
+        s: score_benchmark(joined[joined["split"] == s], *args) for s in ("tune", "holdout", "other")
+        if (joined["split"] == s).any()}
+    md = oddsportal_markdown(joined, splits, dropped, len(quotes), len(intl), len(unmatched))
+    a = splits["all"].set_index("target").loc["series"]
+    return md, (f"{int(a['n'])} international series, model {a['model_log_loss']:.3f} vs market "
+                f"{a['market_log_loss']:.3f} (Δ {a['delta']:+.3f} {a['ci95']})")
 
 
 @app.command()
