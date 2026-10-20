@@ -39,6 +39,28 @@ def test_match_cards_name_favourite_and_result():
     assert c.loc[0, "round"] == "Swiss round 1"
 
 
+def test_match_forecasts_feed_the_cards(tmp_path):
+    assert d.match_forecasts(tmp_path / "none.csv").empty
+    p = tmp_path / "f.csv"
+    pd.DataFrame({"match_id": ["swiss-1-GEN-IG"], "stage": ["swiss"], "round": ["1"], "team_a": ["GEN"],
+                  "team_b": ["IG"], "match_date_utc": ["2026-10-23T17:00:00+00:00"], "best_of": [1],
+                  "model": ["bt"], "mode": ["preview"], "cutoff_utc": ["2026-10-21T00:00:00+00:00"],
+                  "p_game_a": [0.7], "p_series_a": [0.7]}).to_csv(p, index=False)
+    f = d.match_forecasts(p)
+    c = d.match_cards(f, {"GEN": "Gen.G"})
+    assert c.loc[0, "favourite"] == "Gen.G" and c.loc[0, "chance"] == pytest.approx(0.7)
+    assert c.loc[0, "result"] == "Not played yet"
+
+    # a logged live prediction wins over the forecast for the same match; the rest are kept
+    logged = pd.DataFrame({"match_id": ["swiss-1-GEN-IG"], "match_date_utc": ["2026-10-23T17:00:00+00:00"],
+                           "model": ["bt"], "mode": ["live"], "p_series_a": [0.6]})
+    other = f.assign(match_id="swiss-1-BLG-MKOI", match_date_utc="2026-10-24T00:00:00+00:00")
+    both = d.with_forecasts(logged, pd.concat([f, other], ignore_index=True))
+    assert both["match_id"].tolist() == ["swiss-1-GEN-IG", "swiss-1-BLG-MKOI"]
+    assert both["p_series_a"].tolist() == [0.6, 0.7]
+    assert d.with_forecasts(pd.DataFrame(), f)["match_id"].tolist() == ["swiss-1-GEN-IG"]
+
+
 def test_sim_runs_reads_the_report(tmp_path):
     md = tmp_path / "t.md"
     md.write_text("# x\n\n- **Simulation:** 200,000 runs, seed 1; each run ...\n", encoding="utf-8")

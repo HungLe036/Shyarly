@@ -8,7 +8,8 @@ import pytest
 from conftest import make_games
 from shyarly.config import load_worlds
 from shyarly.data.manual import COLUMNS, load_results
-from shyarly.eval.live import LOG_COLUMNS, append_log, due_predictions, score_log, stage_starts
+from shyarly.eval.live import (FORECAST_COLUMNS, LOG_COLUMNS, append_log, due_predictions, forecast_upcoming,
+                               score_log, stage_starts)
 from shyarly.models.bt import BTParams
 from shyarly.models.common import day_start
 from shyarly.models.predictor import Predictor, TeamRef
@@ -112,6 +113,21 @@ def test_models_are_logged_and_scored_separately(tmp_path):
     s = score_log(log, played)
     assert set(zip(s["model"], s["mode"])) == {("bt", "pre_event"), ("bt", "live"),
                                                ("margin_bt", "pre_event"), ("margin_bt", "live")}
+
+
+def test_forecast_upcoming_uses_games_before_today_and_skips_played(tmp_path):
+    rs = rows(tmp_path)
+    rs = [rs[0].__class__(**{**rs[0].__dict__, "winner": "GEN", "score": (1, 0)}), rs[1]]
+    now = pd.Timestamp("2026-10-21T09:00", tz="UTC")
+    out = forecast_upcoming(rs, best_of(rs), predictor_at, ref, now)
+    assert list(out.columns) == FORECAST_COLUMNS
+    assert out["match_id"].tolist() == [rs[1].match_id]          # the played match is left out
+    r = out.iloc[0]
+    assert r["mode"] == "preview" and pd.Timestamp(r["cutoff_utc"]) == day_start(now)
+    expected = predictor_at(day_start(now)).p_game(ref("TLAW"), ref("CFO"))
+    assert r["p_game_a"] == pytest.approx(expected)
+    assert r["p_series_a"] == pytest.approx(series_win_prob(expected, 1))
+    assert forecast_upcoming(rs, {}, predictor_at, ref, now).empty
 
 
 def test_score_log(tmp_path):

@@ -28,6 +28,8 @@ from shyarly.models.series import series_win_prob
 
 LOG_COLUMNS = ["match_id", "stage", "round", "team_a", "team_b", "match_date_utc", "best_of", "model", "mode",
                "cutoff_utc", "p_game_a", "p_series_a", "logged_at_utc", "git_commit", "config_hash"]
+FORECAST_COLUMNS = ["match_id", "stage", "round", "team_a", "team_b", "match_date_utc", "best_of", "model", "mode",
+                    "cutoff_utc", "p_game_a", "p_series_a"]
 MODES = ("pre_event", "live")
 KEY = ["match_id", "model", "mode"]
 SCORE_COLUMNS = ["model", "mode", "n_series", "series_log_loss", "series_brier", "n_games", "game_log_loss"]
@@ -84,6 +86,28 @@ def due_predictions(rows: list[MatchRow], best_of: dict[str, int], predictor_at:
                 "logged_at_utc": now.isoformat(), **provenance,
             })
     return pd.DataFrame(out, columns=LOG_COLUMNS)
+
+
+def forecast_upcoming(rows: list[MatchRow], best_of: dict[str, int],
+                      predictor_at: Callable[[pd.Timestamp], Predictor], ref: Callable[[str], TeamRef],
+                      now: pd.Timestamp, model: str = "bt") -> pd.DataFrame:
+    """Today's forecast (games before today's UTC day) for every drawn, unplayed match with a known
+    best-of. A preview for the page, rewritten each run; the log above is what gets scored."""
+    cutoff = day_start(now)
+    pr = None
+    out = []
+    for r in rows:
+        bo = KO_BEST_OF if r.stage == "knockout" else best_of.get(r.match_id)
+        if bo is None or r.winner is not None:
+            continue
+        pr = pr or predictor_at(cutoff)
+        p_game = float(pr.p_game(ref(r.team_a), ref(r.team_b)))
+        out.append({
+            "match_id": r.match_id, "stage": r.stage, "round": r.round, "team_a": r.team_a, "team_b": r.team_b,
+            "match_date_utc": r.date_utc.isoformat(), "best_of": bo, "model": model, "mode": "preview",
+            "cutoff_utc": cutoff.isoformat(), "p_game_a": p_game, "p_series_a": float(series_win_prob(p_game, bo)),
+        })
+    return pd.DataFrame(out, columns=FORECAST_COLUMNS)
 
 
 def append_log(path: Path, new: pd.DataFrame) -> int:

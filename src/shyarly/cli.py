@@ -280,6 +280,36 @@ def simulate(
     _run_simulation(stage, runs, as_of, seed, posterior, results)
 
 
+def _write_forecasts(g, cfg, worlds, results, now) -> int:
+    """Current production forecast for drawn, unplayed matches -> reports/match_forecasts.csv."""
+    from shyarly.data.manual import swiss_fixed
+    from shyarly.eval.live import forecast_upcoming
+    from shyarly.models.predictor import Predictor, worlds_team_ref
+
+    leagues = load_leagues()
+    fx = swiss_fixed(results, worlds, [t.code for t in worlds.teams])
+    ref = lambda code: worlds_team_ref(code, worlds, leagues, now.year)  # noqa: E731
+    out = forecast_upcoming(results, fx.best_of, lambda c: Predictor.from_config(g, c, cfg), ref, now)
+    out.to_csv(paths.MATCH_FORECASTS, index=False)
+    typer.echo(f"Match forecasts: {len(out)} upcoming matches -> {paths.MATCH_FORECASTS.relative_to(paths.ROOT)}")
+    return len(out)
+
+
+@app.command()
+def forecast() -> None:
+    """Current forecast for every drawn, unplayed match -> reports/match_forecasts.csv (shown on the page,
+    not scored; the scored predictions are logged by `update` once each match day starts)."""
+    import pandas as pd
+
+    from shyarly.config import load_worlds
+    from shyarly.data.manual import load_results
+
+    worlds = load_worlds()
+    results = load_results(paths.MANUAL_RESULTS, worlds)
+    _write_forecasts(pd.read_parquet(paths.GAMES_PARQUET), load_model_config(), worlds, results,
+                     pd.Timestamp.now(tz="UTC"))
+
+
 @app.command()
 def update(
     fetch: bool = typer.Option(True, "--fetch/--no-fetch", help="Re-download this year's Oracle's Elixir data first"),
@@ -326,6 +356,7 @@ def update(
         typer.echo(f"Live scoring [{s['model']} {s['mode']}]: {s['n_series']} series, log loss {s['series_log_loss']:.4f}; "
                    f"{s['n_games']} games, game log loss {s['game_log_loss']:.4f}")
     typer.echo(f"Wrote {paths.LIVE_SCORES_MD.relative_to(paths.ROOT)}")
+    _write_forecasts(g, cfg, worlds, results, now)
 
     if odds:
         from shyarly.config import _read_yaml

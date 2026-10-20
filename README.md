@@ -52,6 +52,7 @@ shyarly update [--no-fetch]                                       # daily during
 shyarly shadow                                                    # pre-registered shadow model run -> reports/shadow_margin.md
 shyarly odds --tournament 2549 [--refresh]                        # closing betting odds (OddsPapi) -> data/manual/market_odds.csv
 shyarly benchmark                                                 # model vs market -> reports/market_benchmark.md
+shyarly forecast                                                  # current odds for drawn, unplayed matches -> reports/match_forecasts.csv (also run by update)
 ```
 
 You can name a team by its Worlds code (`GEN`), its Worlds name, or its Oracle's Elixir name.

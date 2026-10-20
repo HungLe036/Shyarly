@@ -82,9 +82,26 @@ def predictions_vs_results(log_path: Path = paths.PREDICTIONS_LOG,
     else:
         res = res.assign(match_id=res.apply(_match_id, axis=1))[["match_id", "winner", "score"]]
         first = first.merge(res, on="match_id", how="left")
-    keep = ["match_date_utc", "stage", "round", "team_a", "team_b", "best_of", "model", "mode",
+    keep = ["match_id", "match_date_utc", "stage", "round", "team_a", "team_b", "best_of", "model", "mode",
             "p_series_a", "p_game_a", "winner", "score", "logged_at_utc"]
     return first[keep].sort_values(["match_date_utc", "model", "mode"], ignore_index=True)
+
+
+def match_forecasts(path: Path = paths.MATCH_FORECASTS) -> pd.DataFrame:
+    """Current forecast for drawn, unplayed matches (written by `shyarly forecast` / `update`)."""
+    df = _read_csv(path, dtype={"round": str})
+    return df.assign(winner=pd.NA, score=pd.NA) if not df.empty else df
+
+
+def with_forecasts(preds: pd.DataFrame, forecasts: pd.DataFrame) -> pd.DataFrame:
+    """Logged predictions plus the current forecast for matches with no logged live prediction yet."""
+    if forecasts.empty:
+        return preds
+    if preds.empty:
+        return forecasts
+    live = preds.loc[(preds["model"] == "bt") & (preds["mode"] == "live"), "match_id"]
+    out = pd.concat([preds, forecasts[~forecasts["match_id"].isin(live)]], ignore_index=True)
+    return out.sort_values("match_date_utc", kind="stable", ignore_index=True)
 
 
 def live_scores(path: Path = paths.LIVE_SCORES_MD) -> str | None:
@@ -121,7 +138,7 @@ def match_cards(preds: pd.DataFrame, names: dict[str, str] | None = None) -> pd.
     cols = ["date", "round", "favourite", "underdog", "chance", "best_of", "result", "called_it"]
     if preds.empty:
         return pd.DataFrame(columns=cols)
-    p = preds[(preds["model"] == "bt") & (preds["mode"] == "live")] if "model" in preds else preds
+    p = preds[(preds["model"] == "bt") & preds["mode"].isin(["live", "preview"])] if "model" in preds else preds
     names = names or {}
     rows = []
     for r in p.to_dict("records"):

@@ -150,39 +150,8 @@ if not swiss.empty:
 
 # ------------------------------------------------------------------ matches
 st.markdown("## Match by match")
-cards = d.match_cards(d.predictions_vs_results(), names)
-
-
-@st.cache_data(ttl=3600, show_spinner="Working out the match odds…")
-def upcoming(stamp: float) -> pd.DataFrame:
-    """Current forecast for drawn but unplayed matches that have no logged prediction yet."""
-    from shyarly import paths
-    from shyarly.config import load_leagues, load_model_config, load_worlds
-    from shyarly.data.manual import load_results, swiss_fixed
-    from shyarly.models.predictor import Predictor, worlds_team_ref
-
-    worlds, leagues, cfg = load_worlds(), load_leagues(), load_model_config()
-    rows = [r for r in load_results(paths.MANUAL_RESULTS, worlds) if r.winner is None]
-    if not rows or not paths.GAMES_PARQUET.exists():
-        return pd.DataFrame()
-    fx = swiss_fixed(load_results(paths.MANUAL_RESULTS, worlds), worlds, [t.code for t in worlds.teams])
-    pr = Predictor.from_config(pd.read_parquet(paths.GAMES_PARQUET), pd.Timestamp.now(tz="UTC"), cfg)
-    ref = lambda c: worlds_team_ref(c, worlds, leagues, 2026)  # noqa: E731
-    out = []
-    for r in rows:
-        bo = 5 if r.stage == "knockout" else fx.best_of.get(r.match_id)
-        if bo is None:
-            continue
-        out.append({"match_date_utc": r.date_utc.isoformat(), "stage": r.stage, "round": r.round,
-                    "team_a": r.team_a, "team_b": r.team_b, "best_of": bo, "model": "bt", "mode": "live",
-                    "p_series_a": pr.p_series(ref(r.team_a), ref(r.team_b), bo), "winner": pd.NA, "score": pd.NA})
-    return pd.DataFrame(out)
-
-
-if cards.empty:
-    from shyarly import paths as _paths
-    stamp = _paths.MANUAL_RESULTS.stat().st_mtime if _paths.MANUAL_RESULTS.exists() else 0.0
-    cards = d.match_cards(upcoming(stamp), names)
+# logged predictions, plus today's forecast for drawn matches not logged yet
+cards = d.match_cards(d.with_forecasts(d.predictions_vs_results(), d.match_forecasts()), names)
 if cards.empty:
     st.markdown('<p class="lede">No match forecasts yet. Each match and its favourite appear here on '
                 'match day, then get checked against the result.</p>', unsafe_allow_html=True)
