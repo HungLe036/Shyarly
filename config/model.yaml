@@ -19,6 +19,7 @@ backtest:
     - "Widened grids (lambda_team to 64, half-lives 30–1460 days, 4-year lookback), discarded: BT 0.6238 vs region prior 0.6252. The e2fbbcb setup was kept after seeing this."
     - "2026-10-19, pre-registered shadow run (shadow_models.margin_bt): margin_bt 0.6184 vs BT 0.6199 (holdout live). Report only; not used for any decision."
     - "2026-10-19, market benchmark (reports/market_benchmark.md): production BT vs Pinnacle closing odds on 13 MSI 2026 series (+6 Worlds 2026 Play-In). Benchmark only; nothing tuned."
+    - "2026-10-20, OddsPortal benchmark: BT vs average closing odds on 152 holdout series (series log loss 0.5099 vs 0.5054). Benchmark only; nothing tuned."
 
 production:
   # The model used by `shyarly predict` and `shyarly simulate`. Copied from reports/backtest.md

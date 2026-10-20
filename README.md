@@ -199,6 +199,16 @@ All of these are recorded in the configs and in [reports/backtest.md](reports/ba
    [−0.084, +0.148]), so no detectable difference yet. Raw responses stay local in
    `data/raw/odds/`; the compact `data/manual/market_odds.csv` is committed. OddsPapi's terms
    may restrict redistribution, so keep that file out of any public copy of the repo.
+10. **Longer market history from a user-supplied OddsPortal scrape** (local only, in
+    `data/raw/oddsportal/`; OddsPortal's terms restrict scraping and redistribution, so only summary
+    tables are committed). Average closing odds over ~6 mostly soft bookmakers, no Pinnacle. Only
+    clean rows are used: rows without per-bookmaker odds (which included every row of an earlier
+    scraper bug that copied one match's odds to rematches) and duplicates are dropped. Team names
+    are matched with aliases and season-specific past names (`oddsportal` in `config/sources.yaml`),
+    each derived from the data with its vote count. On 442 international series, 2022–2026:
+    model 0.508 vs market 0.520 series log loss (Δ −0.012, 95% CI [−0.039, +0.018]). On the
+    tune events the model looks better (Δ −0.043), but its settings were chosen there; on the
+    holdout the two are level (Δ +0.005, CI [−0.043, +0.054]). Recorded as holdout look 6.
 
 ## During Worlds: the daily routine
 
