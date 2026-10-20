@@ -184,8 +184,8 @@ if cards.empty:
     stamp = _paths.MANUAL_RESULTS.stat().st_mtime if _paths.MANUAL_RESULTS.exists() else 0.0
     cards = d.match_cards(upcoming(stamp), names)
 if cards.empty:
-    st.markdown('<p class="lede">No matches drawn yet. Once the draw is out, each match and its favourite '
-                'appear here, then get checked against the result.</p>', unsafe_allow_html=True)
+    st.markdown('<p class="lede">No match forecasts yet. Each match and its favourite appear here on '
+                'match day, then get checked against the result.</p>', unsafe_allow_html=True)
 else:
     if cards["called_it"].isna().all():
         st.markdown('<p class="lede">The next matches and who the model expects to win. After each match the '

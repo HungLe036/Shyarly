@@ -553,6 +553,7 @@ wheels = [
 name = "shyarly"
 version = "0.1.0"
 source = { editable = "." }
+default-groups = ["app", "dev"]
 dependencies = [
     { name = "numpy" },
     { name = "pandas" },
