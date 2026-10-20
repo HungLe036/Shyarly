@@ -10,7 +10,7 @@ import streamlit as st
 
 from shyarly import dashboard as d
 
-NAVY, GOLD, INK, MUTED, GRID = "#0a1428", "#c8aa6e", "#1e2328", "#5b5a56", "#e4e6ea"
+NAVY, GOLD, INK, MUTED, GRID, BG = "#0a1428", "#c8aa6e", "#e8e6e1", "#a9a8a2", "#262c36", "#11151c"
 FONT = "Barlow"
 
 st.set_page_config(page_title="Who wins Worlds 2026?", page_icon="🏆", layout="centered")
@@ -20,7 +20,7 @@ st.markdown(f"""
 html, body, [class*="css"], .stMarkdown, p, li, label {{ font-family: '{FONT}', sans-serif; }}
 h1, h2, h3 {{ font-family: 'Barlow Condensed', sans-serif !important; letter-spacing: 0.01em; color: {INK}; }}
 h2 {{ font-weight: 600 !important; font-size: 2rem !important; margin-top: 2.5rem !important; }}
-.hero {{ background: {NAVY}; color: #f0e6d2; padding: 2.25rem 2rem 1.75rem; border-radius: 4px;
+.hero {{ background: {NAVY}; color: #f0e6d2; padding: 2.25rem 2rem 1.75rem; border-radius: 4px; border: 1px solid #1e2d45;
          border-bottom: 3px solid {GOLD}; margin-bottom: 1.5rem; }}
 .hero h1 {{ color: #f0e6d2 !important; font-size: 3.1rem !important; line-height: 1.02; margin: 0 0 .75rem; font-weight: 600; }}
 .hero p {{ color: #cdbe91; font-size: 1.1rem; max-width: 34em; margin: 0 0 1rem; line-height: 1.5; }}
@@ -32,6 +32,8 @@ h2 {{ font-weight: 600 !important; font-size: 2rem !important; margin-top: 2.5re
 .chips span {{ display: inline-flex; align-items: center; gap: 6px; }}
 .chips i {{ width: 11px; height: 11px; border-radius: 2px; display: inline-block; }}
 .note {{ font-size: .9rem; color: {MUTED}; }}
+code {{ color: {GOLD} !important; background: #1b212b !important; }}
+.lede b {{ color: {INK}; font-weight: 500; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -46,7 +48,7 @@ def pct(x: float) -> str:
 
 def theme(chart: alt.Chart) -> alt.Chart:
     return (chart.configure(font=FONT, padding={"left": 12, "right": 12, "top": 4, "bottom": 4})
-            .configure_axis(labelColor=MUTED, titleColor=MUTED, gridColor=GRID, domainColor="#c3c2b7",
+            .configure_axis(labelColor=MUTED, titleColor=MUTED, gridColor=GRID, domainColor="#3a414d",
                             labelFontSize=13, titleFontSize=12, titleFontWeight="normal")
             .configure_view(strokeWidth=0)
             .configure_legend(disable=True))
@@ -104,19 +106,20 @@ st.altair_chart(theme((bars + labels).properties(height=34 * len(race))), width=
 # ------------------------------------------------------------------ how far
 st.markdown("## How far each team gets")
 st.markdown('<p class="lede">Eight teams reach the quarterfinals, four the semifinals, two the final. '
-            'Darker means more likely.</p>', unsafe_allow_html=True)
+            'Brighter means more likely.</p>', unsafe_allow_html=True)
 stages = list(d.STAGES.values())
 heat = odds.melt(id_vars=["name"], value_vars=stages, var_name="stage", value_name="p")
 heat["label"] = heat["p"].map(pct)
 base = alt.Chart(heat).encode(
     x=alt.X("stage:N", sort=stages, title=None, axis=alt.Axis(orient="top", labelAngle=0, ticks=False, domain=False)),
     y=alt.Y("name:N", sort=order, title=None, axis=alt.Axis(labelLimit=180, ticks=False, domain=False)))
-cells = base.mark_rect(cornerRadius=3, stroke="white", strokeWidth=2).encode(
-    color=alt.Color("p:Q", scale=alt.Scale(scheme="blues", domain=[0, 0.9])),
+cells = base.mark_rect(cornerRadius=3, stroke=BG, strokeWidth=2).encode(
+    color=alt.Color("p:Q", scale=alt.Scale(domain=[0, 0.3, 0.6, 0.9],
+                                           range=["#18212d", "#1f4f8a", "#3987e5", "#9cc6f5"])),
     tooltip=[alt.Tooltip("name:N", title="Team"), alt.Tooltip("stage:N", title="Reaches"),
              alt.Tooltip("p:Q", title="Chance", format=".1%")])
 text = base.mark_text(fontSize=13).encode(
-    text="label:N", color=alt.condition("datum.p > 0.45", alt.value("white"), alt.value(INK)))
+    text="label:N", color=alt.condition("datum.p > 0.7", alt.value("#0b1220"), alt.value(INK)))
 st.altair_chart(theme((cells + text).properties(height=30 * len(odds))), width="stretch")
 
 # ------------------------------------------------------------------ swiss
@@ -128,9 +131,9 @@ if not swiss.empty:
                 'record; red is the chance of going out.</p>', unsafe_allow_html=True)
     sp = d.swiss_split(swiss)
     sorder = swiss["name"].tolist()
-    rec_colors = ["#0c447c", "#2a78d6", "#85b7eb", "#f09595", "#e24b4a", "#a32d2d"]
+    rec_colors = ["#9cc6f5", "#3987e5", "#1f5a9e", "#8f3a3a", "#d04a4a", "#f09595"]
     rec_scale = alt.Scale(domain=d.RECORDS, range=rec_colors)
-    sbars = alt.Chart(sp).mark_bar(height=18, stroke="white", strokeWidth=1.5).encode(
+    sbars = alt.Chart(sp).mark_bar(height=18, stroke=BG, strokeWidth=1.5).encode(
         y=alt.Y("name:N", sort=sorder, title=None, axis=alt.Axis(labelLimit=180, ticks=False, domain=False)),
         x=alt.X("sum(signed):Q", title=None, stack="zero",
                 axis=alt.Axis(values=[-1, -0.5, 0, 0.5, 1], labelExpr="format(abs(datum.value), '.0%')")),
@@ -138,7 +141,7 @@ if not swiss.empty:
         order=alt.Order("order:Q"),
         tooltip=[alt.Tooltip("name:N", title="Team"), alt.Tooltip("record:N", title="Final record"),
                  alt.Tooltip("p:Q", title="Chance", format=".1%")])
-    rule = alt.Chart(pd.DataFrame({"x": [0]})).mark_rule(color=INK, strokeWidth=1).encode(x="x:Q")
+    rule = alt.Chart(pd.DataFrame({"x": [0]})).mark_rule(color=MUTED, strokeWidth=1).encode(x="x:Q")
     legend = ["3-0", "3-1", "3-2 (through)", "2-3", "1-3", "0-3 (out)"]
     st.markdown('<div class="chips">' + "".join(
         f'<span><i style="background:{c}"></i>{t}</span>' for t, c in zip(legend, rec_colors)) + "</div>",

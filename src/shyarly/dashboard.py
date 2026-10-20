@@ -12,13 +12,14 @@ RECORDS = ["3-0", "3-1", "3-2", "2-3", "1-3", "0-3"]
 STAGES = {"qualify": "Quarterfinals", "semis": "Semifinals", "final": "Final", "champion": "Champion"}
 
 # Region identity, in a fixed order (colours never follow rank). Hues: the validated categorical
-# order of the dataviz reference palette, slots 1-6, light mode.
+# order of the dataviz reference palette, slots 1-6, dark-mode steps (the page is dark; all six
+# pass colour-blind separation and >= 3:1 contrast on a dark surface).
 REGIONS = {
-    "LCK": ("Korea", "#2a78d6"),
-    "LPL": ("China", "#eb6834"),
-    "LEC": ("Europe", "#1baf7a"),
-    "LCS": ("North America", "#eda100"),
-    "LCP": ("Asia-Pacific", "#e87ba4"),
+    "LCK": ("Korea", "#3987e5"),
+    "LPL": ("China", "#d95926"),
+    "LEC": ("Europe", "#199e70"),
+    "LCS": ("North America", "#c98500"),
+    "LCP": ("Asia-Pacific", "#d55181"),
     "CBLOL": ("Brazil", "#008300"),
 }
 
