@@ -277,6 +277,8 @@ OddsPortal) are used locally as a benchmark and are not redistributed here.
 To fetch odds yourself, copy `.env.example` to `.env` and add your own OddsPapi key. `.env` is
 gitignored; never commit it.
 
+The code is MIT-licensed ([LICENSE](LICENSE)); that covers the code only, not the data.
+
 ## Disclaimer
 
 Shyarly isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or
