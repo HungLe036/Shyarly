@@ -194,14 +194,15 @@ All of these are recorded in the configs and in [reports/backtest.md](reports/ba
    (free plan, 250 billable calls a month; the key lives in a gitignored `.env`). Its odds
    history only starts around June 2026: Worlds 2025 and MSI 2025 return none, so the market
    cannot be backtested or blended in. It is compared with the model on what exists (MSI 2026,
-   the 2026 Play-In, and Worlds 2026 as it is played): [reports/market_benchmark.md](reports/market_benchmark.md).
+   the 2026 Play-In, and Worlds 2026 as it is played) by `shyarly benchmark`, which writes
+   `reports/market_benchmark.md` locally.
    First read, 18 series: model 0.745 vs market 0.712 series log loss (Δ +0.033, 95% CI
    [−0.084, +0.148]), so no detectable difference yet. Raw responses stay local in
-   `data/raw/odds/`; the compact `data/manual/market_odds.csv` is committed. OddsPapi's terms
-   may restrict redistribution, so keep that file out of any public copy of the repo.
+   `data/raw/odds/`. The compact `data/manual/market_odds.csv` and the report are gitignored,
+   because OddsPapi's terms may restrict redistribution; only the summary numbers here are published.
 10. **Longer market history from a user-supplied OddsPortal scrape** (local only, in
-    `data/raw/oddsportal/`; OddsPortal's terms restrict scraping and redistribution, so only summary
-    tables are committed). Average closing odds over ~6 mostly soft bookmakers, no Pinnacle. Only
+    `data/raw/oddsportal/`; OddsPortal's terms restrict scraping and redistribution, so only the summary
+    numbers below are published). Average closing odds over ~6 mostly soft bookmakers, no Pinnacle. Only
     clean rows are used: rows without per-bookmaker odds (which included every row of an earlier
     scraper bug that copied one match's odds to rematches) and duplicates are dropped. Team names
     are matched with aliases and season-specific past names (`oddsportal` in `config/sources.yaml`),
@@ -267,6 +268,19 @@ reports/           backtest.md, swiss_odds.*, tournament_odds.*, daily/, predict
 
 ## Data and licensing
 
-`data/` is gitignored except `data/manual/`. Game statistics are the property of Riot Games. The
-match data comes from Oracle's Elixir (Tim Sevenhuysen), and some tournament details come from
-Leaguepedia (CC BY-SA 3.0).
+`data/` is gitignored except the hand-entered files in `data/manual/`; run `shyarly ingest` to
+download the match data yourself. Game statistics are the property of Riot Games. The match data
+comes from [Oracle's Elixir](https://oracleselixir.com) (Tim Sevenhuysen), and some tournament
+details come from [Leaguepedia](https://lol.fandom.com) (CC BY-SA 3.0). Betting odds (OddsPapi,
+OddsPortal) are used locally as a benchmark and are not redistributed here.
+
+To fetch odds yourself, copy `.env.example` to `.env` and add your own OddsPapi key. `.env` is
+gitignored; never commit it.
+
+## Disclaimer
+
+Shyarly isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or
+anyone officially involved in producing or managing Riot Games properties. Riot Games and all
+associated properties are trademarks or registered trademarks of Riot Games, Inc.
+
+The forecasts are a fan statistical project, not betting advice.

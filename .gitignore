@@ -23,3 +23,12 @@ graphify-out/
 
 # local secrets (API keys)
 .env
+.env.*
+!.env.example
+
+# betting-odds data: provider terms restrict redistribution, so these stay local
+data/manual/market_odds.csv
+reports/market_benchmark.md
+
+# local tool settings (machine-specific paths)
+.claude/

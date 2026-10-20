@@ -1,4 +1,4 @@
-"""Compact market-odds table: data/manual/market_odds.csv (committed).
+"""Compact market-odds table: data/manual/market_odds.csv (local only, gitignored: OddsPapi terms restrict redistribution).
 
 The raw OddsPapi responses stay in data/raw/odds/ (local, gitignored). This table keeps,
 per match and bookmaker, only the closing match-winner quote: the last price for each side

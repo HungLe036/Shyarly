@@ -254,3 +254,8 @@ with st.expander("How accurate is it?"):
 """)
 st.markdown(f'<p class="note">Forecast files are in <code>reports/</code>. Last updated '
             f'{updated:%B %d %Y, %H:%M} UTC.</p>', unsafe_allow_html=True)
+st.markdown('<p class="note">A fan forecast, not betting advice. Match data from '
+            '<a href="https://oracleselixir.com">Oracle\'s Elixir</a>. Shyarly isn\'t endorsed by Riot Games '
+            'and doesn\'t reflect the views or opinions of Riot Games or anyone officially involved in '
+            'producing or managing Riot Games properties. Riot Games and all associated properties are '
+            'trademarks or registered trademarks of Riot Games, Inc.</p>', unsafe_allow_html=True)
