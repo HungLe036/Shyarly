@@ -4,10 +4,10 @@ Predictions logged before each match (`reports/predictions_log.csv`, first row p
 
 | model | mode | series | series log loss | series Brier | games | game log loss |
 |---|---|---|---|---|---|---|
-| bt | pre_event | 16 | 0.5766 | 0.1964 | 16 | 0.5766 |
-| bt | live | 16 | 0.5805 | 0.1982 | 16 | 0.5805 |
-| margin_bt | pre_event | 16 | 0.5960 | 0.2050 | 16 | 0.5960 |
-| margin_bt | live | 16 | 0.5989 | 0.2064 | 16 | 0.5989 |
+| bt | pre_event | 24 | 0.5775 | 0.1986 | 29 | 0.6114 |
+| bt | live | 24 | 0.5832 | 0.2014 | 29 | 0.6172 |
+| margin_bt | pre_event | 24 | 0.5908 | 0.2047 | 29 | 0.6207 |
+| margin_bt | live | 24 | 0.5958 | 0.2070 | 29 | 0.6256 |
 
 ## Logged predictions
 
@@ -76,28 +76,48 @@ Predictions logged before each match (`reports/predictions_log.csv`, first row p
 | DK vs T1 (swiss 2) | 1 | margin_bt | live | 50.6% | DK 1-0 | 2026-10-24T01:59 | inf |
 | TLAW vs BLG (swiss 2) | 1 | margin_bt | pre_event | 27.4% | BLG 0-1 | 2026-10-24T01:59 | inf |
 | TLAW vs BLG (swiss 2) | 1 | bt | live | 29.8% | BLG 0-1 | 2026-10-25T12:12 | ea97c2d |
-| HLE vs IG (swiss 3) | 1 | bt | pre_event | 63.0% | — | 2026-10-25T12:12 | ea97c2d |
-| HLE vs IG (swiss 3) | 1 | bt | live | 64.5% | — | 2026-10-25T12:12 | ea97c2d |
-| TES vs G2 (swiss 3) | 1 | bt | pre_event | 54.4% | — | 2026-10-25T12:12 | ea97c2d |
-| TES vs G2 (swiss 3) | 1 | bt | live | 53.0% | — | 2026-10-25T12:12 | ea97c2d |
-| DK vs MKOI (swiss 3) | 3 | bt | pre_event | 79.9% | — | 2026-10-25T12:12 | ea97c2d |
-| DK vs MKOI (swiss 3) | 3 | bt | live | 79.4% | — | 2026-10-25T12:12 | ea97c2d |
-| GEN vs LYON (swiss 3) | 3 | bt | pre_event | 87.4% | — | 2026-10-25T12:12 | ea97c2d |
-| GEN vs LYON (swiss 3) | 3 | bt | live | 88.1% | — | 2026-10-25T12:12 | ea97c2d |
-| T1 vs CFO (swiss 3) | 1 | bt | pre_event | 84.5% | — | 2026-10-25T12:12 | ea97c2d |
-| KC vs BLG (swiss 3) | 1 | bt | pre_event | 37.3% | — | 2026-10-25T12:12 | ea97c2d |
-| LOS vs TSW (swiss 3) | 3 | bt | pre_event | 48.3% | — | 2026-10-25T12:12 | ea97c2d |
-| TLAW vs AL (swiss 3) | 3 | bt | pre_event | 27.0% | — | 2026-10-25T12:12 | ea97c2d |
+| HLE vs IG (swiss 3) | 1 | bt | pre_event | 63.0% | IG 0-1 | 2026-10-25T12:12 | ea97c2d |
+| HLE vs IG (swiss 3) | 1 | bt | live | 64.5% | IG 0-1 | 2026-10-25T12:12 | ea97c2d |
+| TES vs G2 (swiss 3) | 1 | bt | pre_event | 54.4% | TES 1-0 | 2026-10-25T12:12 | ea97c2d |
+| TES vs G2 (swiss 3) | 1 | bt | live | 53.0% | TES 1-0 | 2026-10-25T12:12 | ea97c2d |
+| DK vs MKOI (swiss 3) | 3 | bt | pre_event | 79.9% | DK 2-0 | 2026-10-25T12:12 | ea97c2d |
+| DK vs MKOI (swiss 3) | 3 | bt | live | 79.4% | DK 2-0 | 2026-10-25T12:12 | ea97c2d |
+| GEN vs LYON (swiss 3) | 3 | bt | pre_event | 87.4% | GEN 2-1 | 2026-10-25T12:12 | ea97c2d |
+| GEN vs LYON (swiss 3) | 3 | bt | live | 88.1% | GEN 2-1 | 2026-10-25T12:12 | ea97c2d |
+| T1 vs CFO (swiss 3) | 1 | bt | pre_event | 84.5% | T1 1-0 | 2026-10-25T12:12 | ea97c2d |
+| KC vs BLG (swiss 3) | 1 | bt | pre_event | 37.3% | BLG 0-1 | 2026-10-25T12:12 | ea97c2d |
+| LOS vs TSW (swiss 3) | 3 | bt | pre_event | 48.3% | LOS 2-0 | 2026-10-25T12:12 | ea97c2d |
+| TLAW vs AL (swiss 3) | 3 | bt | pre_event | 27.0% | TLAW 2-0 | 2026-10-25T12:12 | ea97c2d |
 | TLAW vs BLG (swiss 2) | 1 | margin_bt | live | 27.5% | BLG 0-1 | 2026-10-25T12:12 | ea97c2d |
-| HLE vs IG (swiss 3) | 1 | margin_bt | pre_event | 62.7% | — | 2026-10-25T12:12 | ea97c2d |
-| HLE vs IG (swiss 3) | 1 | margin_bt | live | 63.5% | — | 2026-10-25T12:12 | ea97c2d |
-| TES vs G2 (swiss 3) | 1 | margin_bt | pre_event | 53.3% | — | 2026-10-25T12:12 | ea97c2d |
-| TES vs G2 (swiss 3) | 1 | margin_bt | live | 51.9% | — | 2026-10-25T12:12 | ea97c2d |
-| DK vs MKOI (swiss 3) | 3 | margin_bt | pre_event | 81.6% | — | 2026-10-25T12:12 | ea97c2d |
-| DK vs MKOI (swiss 3) | 3 | margin_bt | live | 80.2% | — | 2026-10-25T12:12 | ea97c2d |
-| GEN vs LYON (swiss 3) | 3 | margin_bt | pre_event | 85.5% | — | 2026-10-25T12:12 | ea97c2d |
-| GEN vs LYON (swiss 3) | 3 | margin_bt | live | 85.8% | — | 2026-10-25T12:12 | ea97c2d |
-| T1 vs CFO (swiss 3) | 1 | margin_bt | pre_event | 83.6% | — | 2026-10-25T12:12 | ea97c2d |
-| KC vs BLG (swiss 3) | 1 | margin_bt | pre_event | 33.3% | — | 2026-10-25T12:12 | ea97c2d |
-| LOS vs TSW (swiss 3) | 3 | margin_bt | pre_event | 43.9% | — | 2026-10-25T12:12 | ea97c2d |
-| TLAW vs AL (swiss 3) | 3 | margin_bt | pre_event | 28.5% | — | 2026-10-25T12:12 | ea97c2d |
+| HLE vs IG (swiss 3) | 1 | margin_bt | pre_event | 62.7% | IG 0-1 | 2026-10-25T12:12 | ea97c2d |
+| HLE vs IG (swiss 3) | 1 | margin_bt | live | 63.5% | IG 0-1 | 2026-10-25T12:12 | ea97c2d |
+| TES vs G2 (swiss 3) | 1 | margin_bt | pre_event | 53.3% | TES 1-0 | 2026-10-25T12:12 | ea97c2d |
+| TES vs G2 (swiss 3) | 1 | margin_bt | live | 51.9% | TES 1-0 | 2026-10-25T12:12 | ea97c2d |
+| DK vs MKOI (swiss 3) | 3 | margin_bt | pre_event | 81.6% | DK 2-0 | 2026-10-25T12:12 | ea97c2d |
+| DK vs MKOI (swiss 3) | 3 | margin_bt | live | 80.2% | DK 2-0 | 2026-10-25T12:12 | ea97c2d |
+| GEN vs LYON (swiss 3) | 3 | margin_bt | pre_event | 85.5% | GEN 2-1 | 2026-10-25T12:12 | ea97c2d |
+| GEN vs LYON (swiss 3) | 3 | margin_bt | live | 85.8% | GEN 2-1 | 2026-10-25T12:12 | ea97c2d |
+| T1 vs CFO (swiss 3) | 1 | margin_bt | pre_event | 83.6% | T1 1-0 | 2026-10-25T12:12 | ea97c2d |
+| KC vs BLG (swiss 3) | 1 | margin_bt | pre_event | 33.3% | BLG 0-1 | 2026-10-25T12:12 | ea97c2d |
+| LOS vs TSW (swiss 3) | 3 | margin_bt | pre_event | 43.9% | LOS 2-0 | 2026-10-25T12:12 | ea97c2d |
+| TLAW vs AL (swiss 3) | 3 | margin_bt | pre_event | 28.5% | TLAW 2-0 | 2026-10-25T12:12 | ea97c2d |
+| T1 vs CFO (swiss 3) | 1 | bt | live | 84.6% | T1 1-0 | 2026-10-27T03:52 | 604705c |
+| KC vs BLG (swiss 3) | 1 | bt | live | 37.4% | BLG 0-1 | 2026-10-27T03:52 | 604705c |
+| LOS vs TSW (swiss 3) | 3 | bt | live | 48.0% | LOS 2-0 | 2026-10-27T03:52 | 604705c |
+| TLAW vs AL (swiss 3) | 3 | bt | live | 27.0% | TLAW 2-0 | 2026-10-27T03:52 | 604705c |
+| MKOI vs T1 (swiss 4) | 3 | bt | pre_event | 20.3% | — | 2026-10-27T03:52 | 604705c |
+| IG vs LYON (swiss 4) | 3 | bt | pre_event | 73.2% | — | 2026-10-27T03:52 | 604705c |
+| KC vs CFO (swiss 4) | 3 | bt | pre_event | 80.0% | — | 2026-10-27T03:52 | 604705c |
+| TES vs BLG (swiss 4) | 3 | bt | pre_event | 39.4% | — | 2026-10-27T03:52 | 604705c |
+| TLAW vs LOS (swiss 4) | 3 | bt | pre_event | 68.1% | — | 2026-10-27T03:52 | 604705c |
+| HLE vs G2 (swiss 4) | 3 | bt | pre_event | 76.2% | — | 2026-10-27T03:52 | 604705c |
+| T1 vs CFO (swiss 3) | 1 | margin_bt | live | 83.3% | T1 1-0 | 2026-10-27T03:52 | 604705c |
+| KC vs BLG (swiss 3) | 1 | margin_bt | live | 34.0% | BLG 0-1 | 2026-10-27T03:52 | 604705c |
+| LOS vs TSW (swiss 3) | 3 | margin_bt | live | 43.4% | LOS 2-0 | 2026-10-27T03:52 | 604705c |
+| TLAW vs AL (swiss 3) | 3 | margin_bt | live | 28.8% | TLAW 2-0 | 2026-10-27T03:52 | 604705c |
+| MKOI vs T1 (swiss 4) | 3 | margin_bt | pre_event | 19.2% | — | 2026-10-27T03:52 | 604705c |
+| IG vs LYON (swiss 4) | 3 | margin_bt | pre_event | 72.6% | — | 2026-10-27T03:52 | 604705c |
+| KC vs CFO (swiss 4) | 3 | margin_bt | pre_event | 79.2% | — | 2026-10-27T03:52 | 604705c |
+| TES vs BLG (swiss 4) | 3 | margin_bt | pre_event | 31.1% | — | 2026-10-27T03:52 | 604705c |
+| TLAW vs LOS (swiss 4) | 3 | margin_bt | pre_event | 69.2% | — | 2026-10-27T03:52 | 604705c |
+| HLE vs G2 (swiss 4) | 3 | margin_bt | pre_event | 78.0% | — | 2026-10-27T03:52 | 604705c |

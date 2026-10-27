@@ -1,28 +1,28 @@
 # Worlds 2026 title odds
 
-- **Model:** BT (production params, temperature 1.0502), trained on games before 2026-10-25 UTC (latest game 2026-10-23 23:21 UTC).
+- **Model:** BT (production params, temperature 1.0502), trained on games before 2026-10-27 UTC (latest game 2026-10-26 21:54 UTC).
 - **Simulation:** 50,000 runs, seed 20261018; each run plays the Swiss Stage and then the Knockout Stage with the same strength draw. 95% Monte Carlo margin ≤ ±0.44pp.
 - **Strength uncertainty:** posterior draw per run.
 - **Bracket:** simulated: each 3-0 team meets a random 3-2 team on opposite halves, the other four are paired at random (RULESET 4.3.4.1–2); all matches Bo5.
-- **Results:** 16 played matches fixed from data/manual/worlds2026_results.csv; Swiss rounds complete: 2 of 5.
+- **Results:** 24 played matches fixed from data/manual/worlds2026_results.csv; Swiss rounds complete: 3 of 5.
 
 | team | region | seed | quarterfinals | semifinals | final | champion |
 |---|---|---|---|---|---|---|
-| GEN | LCK | LCK1 | 99.0% | 72.7% | 47.5% | **28.0%** |
-| DK | LCK | LCK4 | 98.0% | 68.9% | 42.6% | **22.6%** |
-| HLE | LCK | LCK2 | 81.2% | 54.3% | 32.0% | **17.8%** |
-| T1 | LCK | LCK3 | 84.6% | 55.9% | 31.2% | **16.9%** |
-| BLG | LPL | LPL2 | 67.3% | 33.1% | 14.2% | **5.7%** |
-| IG | LPL | LPL4 | 50.1% | 20.1% | 7.0% | **2.2%** |
-| TES | LPL | LPL3 | 58.0% | 21.6% | 6.9% | **2.0%** |
-| MKOI | LEC | LEC2 | 71.7% | 21.5% | 5.1% | **1.2%** |
-| AL | LPL | LPL1 | 25.4% | 9.4% | 3.5% | **1.1%** |
-| G2 | LEC | LEC1 | 47.1% | 15.6% | 4.3% | **1.1%** |
-| KC | LEC | LEC3 | 42.8% | 13.5% | 3.8% | **1.0%** |
-| LYON | LCS | LCS2 | 54.8% | 10.7% | 1.6% | **0.3%** |
-| TLAW | LCS | LCS1 | 4.3% | 0.9% | 0.2% | **0.0%** |
-| CFO | LCP | LCP2 | 9.8% | 1.1% | 0.1% | **0.0%** |
-| TSW | LCP | LCP1 | 3.0% | 0.3% | 0.0% | **0.0%** |
-| LOS | CBLOL | CBLOL1 | 2.8% | 0.3% | 0.0% | **0.0%** |
+| GEN | LCK | LCK1 | 100.0% | 75.4% | 50.6% | **29.4%** |
+| DK | LCK | LCK4 | 100.0% | 72.9% | 46.7% | **24.6%** |
+| T1 | LCK | LCK3 | 93.9% | 65.3% | 34.3% | **18.4%** |
+| HLE | LCK | LCK2 | 59.7% | 32.8% | 20.1% | **11.1%** |
+| BLG | LPL | LPL2 | 85.2% | 44.9% | 18.1% | **7.5%** |
+| IG | LPL | LPL4 | 87.2% | 37.4% | 12.0% | **4.1%** |
+| TES | LPL | LPL3 | 77.8% | 29.3% | 8.8% | **2.8%** |
+| MKOI | LEC | LEC2 | 55.9% | 14.0% | 3.1% | **0.7%** |
+| KC | LEC | LEC3 | 36.0% | 8.3% | 2.3% | **0.6%** |
+| LYON | LCS | LCS2 | 55.2% | 11.2% | 1.8% | **0.3%** |
+| G2 | LEC | LEC1 | 13.1% | 3.5% | 1.2% | **0.3%** |
+| TLAW | LCS | LCS1 | 24.6% | 4.1% | 0.8% | **0.2%** |
+| LOS | CBLOL | CBLOL1 | 7.9% | 0.7% | 0.1% | **0.0%** |
+| CFO | LCP | LCP2 | 3.5% | 0.2% | 0.0% | **0.0%** |
+| AL | LPL | LPL1 | 0.0% | 0.0% | 0.0% | **0.0%** |
+| TSW | LCP | LCP1 | 0.0% | 0.0% | 0.0% | **0.0%** |
 
 Columns sum to 800% / 400% / 200% / 100% (8 / 4 / 2 / 1 teams).
